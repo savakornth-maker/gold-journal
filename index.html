@@ -1,129 +1,36 @@
 <!DOCTYPE html>
-<html lang="th">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GoldJournal Pro 📀</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold App</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-    </style>
-    <script>tailwind.config = { darkMode: 'class' }</script>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+<body class="bg-black text-white p-5">
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
-        const { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
         function App() {
-            const [trades, setTrades] = useState([]);
-            const [isDarkMode, setIsDarkMode] = useState(true);
-            const [activeTab, setActiveTab] = useState('journal');
-            const [isModalOpen, setIsModalOpen] = useState(false);
-
-            useEffect(() => {
-                const saved = localStorage.getItem('gold_journal_v1');
-                if (saved) setTrades(JSON.parse(saved));
-            }, []);
-
-            useEffect(() => {
-                localStorage.setItem('gold_journal_v1', JSON.stringify(trades));
-            }, [trades]);
-
-            const stats = useMemo(() => {
-                const total = trades.reduce((s, t) => s + Number(t.pnl), 0);
-                const wins = trades.filter(t => t.pnl > 0).length;
-                const wr = trades.length > 0 ? (wins / trades.length * 100).toFixed(1) : 0;
-                return { total, wr };
-            }, [trades]);
-
+            const [trades, setTrades] = React.useState([]);
+            const add = () => setTrades([{id:Date.now(), pnl: prompt("กำไรเท่าไหร่ ($)?")}, ...trades]);
             return (
-                <div className={isDarkMode ? 'dark' : ''}>
-                    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20">
-                        <header className="p-5 flex justify-between items-center border-b dark:border-slate-800">
-                            <h1 className="text-xl font-black text-yellow-500">GOLD PRO 📀</h1>
-                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-xl">
-                                {isDarkMode ? '☀️' : '🌙'}
-                            </button>
-                        </header>
-
-                        <div className="flex p-4 gap-4 overflow-x-auto no-scrollbar">
-                            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl min-w-[140px] border dark:border-slate-800">
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Net PnL</p>
-                                <p className={`text-xl font-black ${stats.total >= 0 ? 'text-green-500' : 'text-red-500'}`}>${stats.total}</p>
+                <div>
+                    <h1 className="text-2xl font-bold text-yellow-500 mb-5">GOLD JOURNAL</h1>
+                    <button onClick={add} className="bg-yellow-500 text-black p-4 rounded-xl w-full font-bold">บันทึกเทรดใหม่ +</button>
+                    <div className="mt-5 space-y-2">
+                        {trades.map(t => (
+                            <div key={t.id} className="bg-zinc-900 p-4 rounded-xl flex justify-between border-l-4 border-yellow-500">
+                                <span>Gold Trade</span>
+                                <span className="font-bold text-green-400">${t.pnl}</span>
                             </div>
-                            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl min-w-[140px] border dark:border-slate-800">
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Win Rate</p>
-                                <p className="text-xl font-black text-yellow-500">{stats.wr}%</p>
-                            </div>
-                        </div>
-
-                        <main className="p-4">
-                            {activeTab === 'journal' ? <Journal trades={trades} /> : <Stats trades={trades} />}
-                        </main>
-
-                        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 flex justify-around">
-                            <button onClick={() => setActiveTab('journal')} className={`font-bold ${activeTab === 'journal' ? 'text-yellow-500' : 'text-slate-400'}`}>JOURNAL</button>
-                            <button onClick={() => setIsModalOpen(true)} className="bg-yellow-500 text-black w-12 h-12 rounded-full font-bold text-2xl -mt-8 shadow-lg">+</button>
-                            <button onClick={() => setActiveTab('stats')} className={`font-bold ${activeTab === 'stats' ? 'text-yellow-500' : 'text-slate-400'}`}>STATS</button>
-                        </nav>
-
-                        {isModalOpen && <Modal onSave={(t) => {setTrades([t, ...trades]); setIsModalOpen(false)}} onClose={() => setIsModalOpen(false)} />}
+                        ))}
                     </div>
                 </div>
             );
         }
-        function Journal({ trades }) {
-            return (
-                <div className="space-y-3">
-                    {trades.map(t => (
-                        <div key={t.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border dark:border-slate-800 flex justify-between border-l-4 border-l-yellow-500">
-                            <div><p className="text-xs font-bold">{t.side} @{t.entry}</p><p className="text-[10px] text-slate-500">{t.emotion}</p></div>
-                            <div className="text-right"><p className={`font-black ${t.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>${t.pnl}</p></div>
-                        </div>
-                    ))}
-                </div>
-            );
-        }
-
-        function Stats({ trades }) {
-            const data = trades.slice().reverse().map((t, i) => ({ n: i+1, p: t.pnl }));
-            return (
-                <div className="h-64 bg-white dark:bg-slate-900 p-4 rounded-2xl border dark:border-slate-800">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data}><Area type="monotone" dataKey="p" stroke="#EAB308" fill="#EAB30833" strokeWidth={3} /></AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            );
-        }
-
-        function Modal({ onSave, onClose }) {
-            const [pnl, setPnl] = useState('');
-            const [side, setSide] = useState('BUY');
-            return (
-                <div className="fixed inset-0 bg-black/80 flex items-center p-4 z-50">
-                    <div className="bg-white dark:bg-slate-900 w-full p-6 rounded-3xl">
-                        <h2 className="font-black mb-4 text-center text-xl">NEW TRADE</h2>
-                        <div className="flex gap-2 mb-4">
-                            <button onClick={() => setSide('BUY')} className={`flex-1 p-2 rounded-xl font-bold ${side === 'BUY' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>BUY</button>
-                            <button onClick={() => setSide('SELL')} className={`flex-1 p-2 rounded-xl font-bold ${side === 'SELL' ? 'bg-red-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>SELL</button>
-                        </div>
-                        <input type="number" placeholder="PnL ($)" value={pnl} onChange={e => setPnl(e.target.value)} className="w-full p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-4 font-bold outline-none" />
-                        <button onClick={() => onSave({id: Date.now(), pnl: Number(pnl), side, entry: 'Gold', emotion: '😌'})} className="w-full bg-yellow-500 text-black p-4 rounded-2xl font-black text-lg">SAVE 💾</button>
-                        <button onClick={onClose} className="w-full text-slate-500 mt-4 font-bold">CLOSE</button>
-                    </div>
-                </div>
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
