@@ -3,157 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GoldJournal Pro Max</title>
+    <title>GoldJournal Pro Max Lite</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
 </head>
 <body class="bg-slate-950 text-white font-sans">
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } = Recharts;
 
         function App() {
             const [trades, setTrades] = useState([]);
             const [showAdd, setShowAdd] = useState(false);
-            const [formData, setFormData] = useState({ pnl:'', side:'BUY', rr:'', session:'NY', note:'', emotion:'😌' });
+            const [form, setForm] = useState({ pnl: '', rr: '', side: 'BUY', session: 'NY', note: '', emo: '😌' });
 
             useEffect(() => {
-                const saved = localStorage.getItem('gold_v_final');
+                const saved = localStorage.getItem('gold_final_v3');
                 if (saved) setTrades(JSON.parse(saved));
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('gold_v_final', JSON.stringify(trades));
+                localStorage.setItem('gold_final_v3', JSON.stringify(trades));
             }, [trades]);
 
             const stats = useMemo(() => {
-                const total = trades.reduce((s, t) => s + Number(t.pnl), 0);
+                const total = trades.reduce((s, t) => s + Number(t.pnl || 0), 0);
                 const wins = trades.filter(t => Number(t.pnl) > 0).length;
-                const wr = trades.length > 0 ? (wins / trades.length * 100).toFixed(1) : 0;
-                const avgRR = trades.length > 0 ? (trades.reduce((s, t) => s + Number(t.rr || 0), 0) / trades.length).toFixed(1) : 0;
-                return { total, wr, avgRR };
+                const wr = trades.length > 0 ? (wins / trades.length * 100).toFixed(0) : 0;
+                return { total, wr, count: trades.length };
             }, [trades]);
 
-            const chartData = useMemo(() => {
-                let current = 0;
-                return [...trades].reverse().map((t, i) => {
-                    current += Number(t.pnl);
-                    return { n: i + 1, p: current };
-                });
-            }, [trades]);
-
-            const saveTrade = () => {
-                if(!formData.pnl) return;
-                setTrades([{ ...formData, id: Date.now(), date: new Date().toLocaleDateString() }, ...trades]);
+            const save = () => {
+                if (!form.pnl) return;
+                setTrades([{ ...form, id: Date.now(), date: new Date().toLocaleDateString() }, ...trades]);
                 setShowAdd(false);
-                setFormData({ pnl:'', side:'BUY', rr:'', session:'NY', note:'', emotion:'😌' });
+                setForm({ pnl: '', rr: '', side: 'BUY', session: 'NY', note: '', emo: '😌' });
             };
 
             return (
                 <div className="min-h-screen pb-24 p-4 max-w-md mx-auto">
-                    <header className="flex justify-between items-center mb-6">
+                    <header className="flex justify-between items-end mb-6">
                         <div>
-                            <h1 className="text-2xl font-black text-yellow-500 italic leading-none">GOLD PRO MAX</h1>
-                            <p className="text-[10px] text-slate-500 font-bold tracking-widest mt-1 uppercase">Advanced Journaling</p>
+                            <h1 className="text-2xl font-black text-yellow-500 italic">GOLD JOURNAL</h1>
+                            <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase">Performance Tracking</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-[10px] text-slate-500 font-bold">TOTAL PNL</p>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase">Net PnL</p>
                             <p className={`text-xl font-black ${stats.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>${stats.total}</p>
                         </div>
                     </header>
 
-                    {/* Dashboard Mini Graph */}
-                    <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 mb-6 h-40 relative overflow-hidden">
-                        <p className="text-[10px] text-slate-500 font-bold mb-2 uppercase">Equity Curve</p>
-                        <ResponsiveContainer width="100%" height="80%">
-                            <LineChart data={chartData}>
-                                <YAxis hide domain={['auto', 'auto']} />
-                                <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px', fontSize:'12px'}} />
-                                <Line type="monotone" dataKey="p" stroke="#eab308" strokeWidth={3} dot={false} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                        <StatCard label="Win Rate" value={`${stats.wr}%`} color="text-yellow-500" />
-                        <StatCard label="Avg R:R" value={stats.avgRR} color="text-blue-400" />
+                    {/* Simple Stats Card */}
+                    <div className="bg-slate-900 p-5 rounded-[2rem] border border-slate-800 mb-6 shadow-xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-xs font-bold text-slate-400 uppercase">Win Rate: {stats.wr}%</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase">Total: {stats.count}</span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden flex">
+                            <div style={{ width: `${stats.wr}%` }} className="h-full bg-yellow-500 transition-all duration-500"></div>
+                        </div>
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Recent Trades</h3>
                         {trades.map(t => (
-                            <div key={t.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 border-l-4 border-l-yellow-500 shadow-lg">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${t.side === 'BUY' ? 'bg-blue-600' : 'bg-red-600'}`}>{t.side}</span>
-                                            <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded">{t.session}</span>
-                                            <span className="text-[10px] text-slate-500">{t.date}</span>
-                                        </div>
-                                        <p className="font-bold text-sm">XAUUSD {t.emotion}</p>
+                            <div key={t.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 border-l-4 border-l-yellow-500">
+                                <div className="flex justify-between items-start mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[9px] font-black px-2 py-0.5 rounded ${t.side === 'BUY' ? 'bg-blue-600' : 'bg-red-600'}`}>{t.side}</span>
+                                        <span className="text-[9px] font-bold text-slate-500 bg-slate-800 px-2 py-0.5 rounded uppercase">{t.session}</span>
+                                        <span className="text-[9px] text-slate-500">{t.date}</span>
                                     </div>
-                                    <div className="text-right">
-                                        <p className={`text-lg font-black ${t.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{t.pnl >= 0 ? '+' : ''}${t.pnl}</p>
-                                        <p className="text-[9px] text-slate-500 font-bold italic">RR {t.rr || 'N/A'}</p>
-                                    </div>
+                                    <p className={`font-black ${Number(t.pnl) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        {Number(t.pnl) >= 0 ? '+' : ''}${t.pnl}
+                                    </p>
                                 </div>
-                                {t.note && <p className="text-[11px] text-slate-400 bg-black/30 p-2 rounded-lg italic">"{t.note}"</p>}
+                                <p className="text-sm font-bold">XAUUSD {t.emo} <span className="text-[10px] text-slate-500 ml-2 font-normal italic">RR: {t.rr || '0'}</span></p>
+                                {t.note && <p className="mt-2 text-[11px] text-slate-400 italic bg-black/20 p-2 rounded-lg leading-relaxed">"{t.note}"</p>}
                             </div>
                         ))}
                     </div>
 
-                    <button onClick={() => setShowAdd(true)} className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-8 py-4 rounded-full font-black text-lg shadow-2xl z-40 active:scale-95 transition-transform flex items-center gap-2">
-                        <span>NEW ENTRY</span>
-                        <span className="text-2xl">+</span>
-                    </button>
+                    <button onClick={() => setShowAdd(true)} className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-10 py-4 rounded-full font-black text-lg shadow-2xl active:scale-95 transition-transform">ADD TRADE +</button>
 
                     {showAdd && (
                         <div className="fixed inset-0 bg-black/95 flex items-end p-4 z-50">
-                            <div className="bg-slate-900 w-full p-6 rounded-[2.5rem] border border-slate-800 shadow-2xl max-w-md mx-auto overflow-y-auto max-h-[90vh]">
-                                <h2 className="font-black text-2xl mb-6 text-yellow-500 italic">LOG TRADE</h2>
-                                
+                            <div className="bg-slate-900 w-full p-6 rounded-[2.5rem] border border-slate-800 max-w-md mx-auto">
+                                <div className="flex gap-2 mb-4">
+                                    <button onClick={() => setForm({...form, side:'BUY'})} className={`flex-1 p-3 rounded-xl font-bold ${form.side === 'BUY' ? 'bg-blue-600' : 'bg-slate-800 text-slate-500'}`}>BUY</button>
+                                    <button onClick={() => setForm({...form, side:'SELL'})} className={`flex-1 p-3 rounded-xl font-bold ${form.side === 'SELL' ? 'bg-red-600' : 'bg-slate-800 text-slate-500'}`}>SELL</button>
+                                </div>
                                 <div className="grid grid-cols-2 gap-3 mb-4">
-                                    <button onClick={() => setFormData({...formData, side:'BUY'})} className={`p-3 rounded-2xl font-bold transition-all ${formData.side === 'BUY' ? 'bg-blue-600 ring-4 ring-blue-600/20' : 'bg-slate-800 opacity-40'}`}>BUY</button>
-                                    <button onClick={() => setFormData({...formData, side:'SELL'})} className={`p-3 rounded-2xl font-bold transition-all ${formData.side === 'SELL' ? 'bg-red-600 ring-4 ring-red-600/20' : 'bg-slate-800 opacity-40'}`}>SELL</button>
+                                    <input type="number" placeholder="PnL ($)" value={form.pnl} onChange={e => setForm({...form, pnl:e.target.value})} className="p-4 bg-slate-800 rounded-2xl font-bold outline-none border border-slate-700 focus:border-yellow-500" />
+                                    <input type="number" placeholder="R:R Ratio" value={form.rr} onChange={e => setForm({...form, rr:e.target.value})} className="p-4 bg-slate-800 rounded-2xl font-bold outline-none border border-slate-700 focus:border-yellow-500" />
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-3 mb-4">
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ml-2">PNL ($)</label>
-                                        <input type="number" value={formData.pnl} onChange={e => setFormData({...formData, pnl:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl font-bold outline-none border border-slate-700 focus:border-yellow-500 transition-colors" placeholder="0.00" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-500 ml-2">R:R RATIO</label>
-                                        <input type="number" value={formData.rr} onChange={e => setFormData({...formData, rr:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl font-bold outline-none border border-slate-700 focus:border-yellow-500 transition-colors" placeholder="1.5" />
-                                    </div>
-                                </div>
-
-                                <div className="mb-4 space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-500 ml-2">TRADING SESSION</label>
-                                    <div className="flex gap-2">
-                                        {['ASIA', 'LON', 'NY'].map(s => (
-                                            <button key={s} onClick={() => setFormData({...formData, session:s})} className={`flex-1 p-2 rounded-xl text-[10px] font-bold border ${formData.session === s ? 'bg-yellow-500 text-black border-yellow-500' : 'border-slate-700 text-slate-500'}`}>{s}</button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="mb-6 space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-500 ml-2">TRADE NOTE (WHY?)</label>
-                                    <textarea value={formData.note} onChange={e => setFormData({...formData, note:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl font-medium text-sm outline-none border border-slate-700 h-20" placeholder="เหตุผลที่เข้าไม้ เช่น Breakout H1..." />
-                                </div>
-
-                                <div className="flex justify-around mb-8 text-2xl">
-                                    {['😌', '😐', '😰', '😤'].map(e => (
-                                        <button key={e} onClick={() => setFormData({...formData, emotion:e})} className={`transition-all ${formData.emotion === e ? 'scale-150 grayscale-0' : 'grayscale opacity-30 scale-100'}`}>{e}</button>
+                                <div className="flex gap-2 mb-4">
+                                    {['ASIA', 'LON', 'NY'].map(s => (
+                                        <button key={s} onClick={() => setForm({...form, session:s})} className={`flex-1 p-2 rounded-xl text-[10px] font-bold border ${form.session === s ? 'bg-yellow-500 text-black' : 'border-slate-700 text-slate-500'}`}>{s}</button>
                                     ))}
                                 </div>
-
-                                <button onClick={saveTrade} className="w-full bg-yellow-500 text-black p-5 rounded-2xl font-black text-xl shadow-xl active:scale-95 transition-all">SAVE JOURNAL 💿</button>
-                                <button onClick={() => setShowAdd(false)} className="w-full text-slate-500 mt-4 font-bold py-2">DISCARD</button>
+                                <textarea placeholder="Note (เหตุผลที่เข้าเทรด)" value={form.note} onChange={e => setForm({...form, note:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl mb-4 text-sm h-20 outline-none border border-slate-700 focus:border-yellow-500" />
+                                <div className="flex justify-around mb-6 text-2xl">
+                                    {['😌', '😐', '😰', '😤'].map(e => (
+                                        <button key={e} onClick={() => setForm({...form, emo:e})} className={form.emo === e ? 'scale-150 transition-transform' : 'opacity-30'}>{e}</button>
+                                    ))}
+                                </div>
+                                <button onClick={save} className="w-full bg-yellow-500 text-black p-4 rounded-2xl font-black text-xl mb-3 shadow-lg shadow-yellow-500/20">SAVE 📀</button>
+                                <button onClick={() => setShowAdd(false)} className="w-full text-slate-500 font-bold py-2">CANCEL</button>
                             </div>
                         </div>
                     )}
@@ -161,16 +118,8 @@
             );
         }
 
-        function StatCard({ label, value, color }) {
-            return (
-                <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">{label}</p>
-                    <p className={`text-2xl font-black ${color}`}>{value}</p>
-                </div>
-            );
-        }
-
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
