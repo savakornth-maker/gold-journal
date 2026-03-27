@@ -3,110 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GoldJournal Pro B</title>
+    <title>GoldJournal Pro Max</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
 </head>
 <body class="bg-slate-950 text-white font-sans">
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
+        const { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } = Recharts;
 
         function App() {
             const [trades, setTrades] = useState([]);
             const [showAdd, setShowAdd] = useState(false);
-            const [pnl, setPnl] = useState('');
-            const [side, setSide] = useState('BUY');
-            const [emotion, setEmotion] = useState('😌');
+            const [formData, setFormData] = useState({ pnl:'', side:'BUY', rr:'', session:'NY', note:'', emotion:'😌' });
 
             useEffect(() => {
-                const saved = localStorage.getItem('gold_v2b');
+                const saved = localStorage.getItem('gold_v_final');
                 if (saved) setTrades(JSON.parse(saved));
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('gold_v2b', JSON.stringify(trades));
+                localStorage.setItem('gold_v_final', JSON.stringify(trades));
             }, [trades]);
 
             const stats = useMemo(() => {
                 const total = trades.reduce((s, t) => s + Number(t.pnl), 0);
                 const wins = trades.filter(t => Number(t.pnl) > 0).length;
                 const wr = trades.length > 0 ? (wins / trades.length * 100).toFixed(1) : 0;
-                return { total, wr };
+                const avgRR = trades.length > 0 ? (trades.reduce((s, t) => s + Number(t.rr || 0), 0) / trades.length).toFixed(1) : 0;
+                return { total, wr, avgRR };
             }, [trades]);
 
-            const addTrade = () => {
-                if(!pnl) return;
-                const newTrade = { id: Date.now(), pnl, side, emotion, date: new Date().toLocaleDateString() };
-                setTrades([newTrade, ...trades]);
-                setPnl(''); setSide('BUY'); setEmotion('😌');
+            const chartData = useMemo(() => {
+                let current = 0;
+                return [...trades].reverse().map((t, i) => {
+                    current += Number(t.pnl);
+                    return { n: i + 1, p: current };
+                });
+            }, [trades]);
+
+            const saveTrade = () => {
+                if(!formData.pnl) return;
+                setTrades([{ ...formData, id: Date.now(), date: new Date().toLocaleDateString() }, ...trades]);
                 setShowAdd(false);
+                setFormData({ pnl:'', side:'BUY', rr:'', session:'NY', note:'', emotion:'😌' });
             };
 
             return (
-                <div className="min-h-screen pb-24 p-4">
+                <div className="min-h-screen pb-24 p-4 max-w-md mx-auto">
                     <header className="flex justify-between items-center mb-6">
-                        <h1 className="text-xl font-black text-yellow-500 italic">GOLD PRO B</h1>
+                        <div>
+                            <h1 className="text-2xl font-black text-yellow-500 italic leading-none">GOLD PRO MAX</h1>
+                            <p className="text-[10px] text-slate-500 font-bold tracking-widest mt-1 uppercase">Advanced Journaling</p>
+                        </div>
                         <div className="text-right">
-                            <p className="text-[10px] text-slate-500 font-bold">Net Profit</p>
-                            <p className={`text-lg font-black ${stats.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>${stats.total}</p>
+                            <p className="text-[10px] text-slate-500 font-bold">TOTAL PNL</p>
+                            <p className={`text-xl font-black ${stats.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>${stats.total}</p>
                         </div>
                     </header>
 
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                            <p className="text-[9px] text-slate-500 font-bold">WIN RATE</p>
-                            <p className="text-xl font-black text-yellow-500">{stats.wr}%</p>
-                        </div>
-                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
-                            <p className="text-[9px] text-slate-500 font-bold">TOTAL TRADES</p>
-                            <p className="text-xl font-black">{trades.length}</p>
-                        </div>
+                    {/* Dashboard Mini Graph */}
+                    <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800 mb-6 h-40 relative overflow-hidden">
+                        <p className="text-[10px] text-slate-500 font-bold mb-2 uppercase">Equity Curve</p>
+                        <ResponsiveContainer width="100%" height="80%">
+                            <LineChart data={chartData}>
+                                <YAxis hide domain={['auto', 'auto']} />
+                                <Tooltip contentStyle={{backgroundColor:'#1e293b', border:'none', borderRadius:'10px', fontSize:'12px'}} />
+                                <Line type="monotone" dataKey="p" stroke="#eab308" strokeWidth={3} dot={false} />
+                            </LineChart>
+                        </ResponsiveContainer>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                        <StatCard label="Win Rate" value={`${stats.wr}%`} color="text-yellow-500" />
+                        <StatCard label="Avg R:R" value={stats.avgRR} color="text-blue-400" />
+                    </div>
+
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Recent Trades</h3>
                         {trades.map(t => (
-                            <div key={t.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex justify-between items-center border-l-4 border-l-yellow-500">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className={`text-[10px] font-bold px-2 rounded ${t.side === 'BUY' ? 'bg-blue-500' : 'bg-red-500'}`}>{t.side}</span>
-                                        <span className="text-[10px] text-slate-500">{t.date}</span>
+                            <div key={t.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 border-l-4 border-l-yellow-500 shadow-lg">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${t.side === 'BUY' ? 'bg-blue-600' : 'bg-red-600'}`}>{t.side}</span>
+                                            <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded">{t.session}</span>
+                                            <span className="text-[10px] text-slate-500">{t.date}</span>
+                                        </div>
+                                        <p className="font-bold text-sm">XAUUSD {t.emotion}</p>
                                     </div>
-                                    <p className="font-bold mt-1">XAUUSD {t.emotion}</p>
+                                    <div className="text-right">
+                                        <p className={`text-lg font-black ${t.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{t.pnl >= 0 ? '+' : ''}${t.pnl}</p>
+                                        <p className="text-[9px] text-slate-500 font-bold italic">RR {t.rr || 'N/A'}</p>
+                                    </div>
                                 </div>
-                                <div className="text-right p-1">
-                                    <p className={`text-lg font-black ${t.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{t.pnl >= 0 ? '+' : ''}${t.pnl}</p>
-                                </div>
+                                {t.note && <p className="text-[11px] text-slate-400 bg-black/30 p-2 rounded-lg italic">"{t.note}"</p>}
                             </div>
                         ))}
                     </div>
 
-                    <button onClick={() => setShowAdd(true)} className="fixed bottom-6 right-6 bg-yellow-500 text-black w-14 h-14 rounded-full font-bold text-3xl shadow-2xl z-40">+</button>
+                    <button onClick={() => setShowAdd(true)} className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-8 py-4 rounded-full font-black text-lg shadow-2xl z-40 active:scale-95 transition-transform flex items-center gap-2">
+                        <span>NEW ENTRY</span>
+                        <span className="text-2xl">+</span>
+                    </button>
 
                     {showAdd && (
-                        <div className="fixed inset-0 bg-black/90 flex items-end p-4 z-50">
-                            <div className="bg-slate-900 w-full p-6 rounded-3xl border border-slate-800 shadow-2xl">
-                                <h2 className="font-black text-xl mb-6">NEW TRADE 📀</h2>
+                        <div className="fixed inset-0 bg-black/95 flex items-end p-4 z-50">
+                            <div className="bg-slate-900 w-full p-6 rounded-[2.5rem] border border-slate-800 shadow-2xl max-w-md mx-auto overflow-y-auto max-h-[90vh]">
+                                <h2 className="font-black text-2xl mb-6 text-yellow-500 italic">LOG TRADE</h2>
+                                
                                 <div className="grid grid-cols-2 gap-3 mb-4">
-                                    <button onClick={() => setSide('BUY')} className={`p-3 rounded-xl font-bold ${side === 'BUY' ? 'bg-blue-600' : 'bg-slate-800 text-slate-500'}`}>BUY</button>
-                                    <button onClick={() => setSide('SELL')} className={`p-3 rounded-xl font-bold ${side === 'SELL' ? 'bg-red-600' : 'bg-slate-800 text-slate-500'}`}>SELL</button>
+                                    <button onClick={() => setFormData({...formData, side:'BUY'})} className={`p-3 rounded-2xl font-bold transition-all ${formData.side === 'BUY' ? 'bg-blue-600 ring-4 ring-blue-600/20' : 'bg-slate-800 opacity-40'}`}>BUY</button>
+                                    <button onClick={() => setFormData({...formData, side:'SELL'})} className={`p-3 rounded-2xl font-bold transition-all ${formData.side === 'SELL' ? 'bg-red-600 ring-4 ring-red-600/20' : 'bg-slate-800 opacity-40'}`}>SELL</button>
                                 </div>
-                                <input type="number" value={pnl} onChange={e => setPnl(e.target.value)} placeholder="PnL ($)" className="w-full p-4 bg-slate-800 rounded-2xl mb-4 font-bold outline-none" />
-                                <div className="flex justify-around mb-6 text-2xl">
+
+                                <div className="grid grid-cols-2 gap-3 mb-4">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ml-2">PNL ($)</label>
+                                        <input type="number" value={formData.pnl} onChange={e => setFormData({...formData, pnl:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl font-bold outline-none border border-slate-700 focus:border-yellow-500 transition-colors" placeholder="0.00" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-slate-500 ml-2">R:R RATIO</label>
+                                        <input type="number" value={formData.rr} onChange={e => setFormData({...formData, rr:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl font-bold outline-none border border-slate-700 focus:border-yellow-500 transition-colors" placeholder="1.5" />
+                                    </div>
+                                </div>
+
+                                <div className="mb-4 space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 ml-2">TRADING SESSION</label>
+                                    <div className="flex gap-2">
+                                        {['ASIA', 'LON', 'NY'].map(s => (
+                                            <button key={s} onClick={() => setFormData({...formData, session:s})} className={`flex-1 p-2 rounded-xl text-[10px] font-bold border ${formData.session === s ? 'bg-yellow-500 text-black border-yellow-500' : 'border-slate-700 text-slate-500'}`}>{s}</button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="mb-6 space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-500 ml-2">TRADE NOTE (WHY?)</label>
+                                    <textarea value={formData.note} onChange={e => setFormData({...formData, note:e.target.value})} className="w-full p-4 bg-slate-800 rounded-2xl font-medium text-sm outline-none border border-slate-700 h-20" placeholder="เหตุผลที่เข้าไม้ เช่น Breakout H1..." />
+                                </div>
+
+                                <div className="flex justify-around mb-8 text-2xl">
                                     {['😌', '😐', '😰', '😤'].map(e => (
-                                        <button key={e} onClick={() => setEmotion(e)} className={emotion === e ? 'scale-125 transition-transform p-1' : 'opacity-60'}>{e}</button>
+                                        <button key={e} onClick={() => setFormData({...formData, emotion:e})} className={`transition-all ${formData.emotion === e ? 'scale-150 grayscale-0' : 'grayscale opacity-30 scale-100'}`}>{e}</button>
                                     ))}
                                 </div>
-                                <button onClick={addTrade} className="w-full bg-yellow-500 text-black p-4 rounded-2xl font-black text-lg">SAVE DATA</button>
-                                <button onClick={() => setShowAdd(false)} className="w-full text-slate-500 mt-4 font-bold">CLOSE</button>
+
+                                <button onClick={saveTrade} className="w-full bg-yellow-500 text-black p-5 rounded-2xl font-black text-xl shadow-xl active:scale-95 transition-all">SAVE JOURNAL 💿</button>
+                                <button onClick={() => setShowAdd(false)} className="w-full text-slate-500 mt-4 font-bold py-2">DISCARD</button>
                             </div>
                         </div>
                     )}
                 </div>
             );
         }
+
+        function StatCard({ label, value, color }) {
+            return (
+                <div className="bg-slate-900 p-4 rounded-3xl border border-slate-800">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">{label}</p>
+                    <p className={`text-2xl font-black ${color}`}>{value}</p>
+                </div>
+            );
+        }
+
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
