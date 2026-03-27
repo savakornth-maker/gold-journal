@@ -8,274 +8,119 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide-static/lib/lucide.min.js"></script>
     <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .bottom-sheet { transition: transform 0.3s ease-out; transform: translateY(100%); }
-        .bottom-sheet.open { transform: translateY(0); }
     </style>
-    <script>
-        tailwind.config = { darkMode: 'class' }
-    </script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
     <div id="root"></div>
-
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } = Recharts;
-
-        // --- Core App Component ---
+        const { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } = Recharts;
         function App() {
             const [trades, setTrades] = useState([]);
             const [isDarkMode, setIsDarkMode] = useState(true);
             const [activeTab, setActiveTab] = useState('journal');
             const [isModalOpen, setIsModalOpen] = useState(false);
-            const [balance, setBalance] = useState(10000);
 
-            // Load Data from LocalStorage
             useEffect(() => {
-                const saved = localStorage.getItem('gold_journal_data');
+                const saved = localStorage.getItem('gold_journal_v1');
                 if (saved) setTrades(JSON.parse(saved));
-                const savedBalance = localStorage.getItem('gold_journal_balance');
-                if (savedBalance) setBalance(Number(savedBalance));
             }, []);
 
-            // Save Data
             useEffect(() => {
-                localStorage.setItem('gold_journal_data', JSON.stringify(trades));
-                localStorage.setItem('gold_journal_balance', balance.toString());
-            }, [trades, balance]);
-
-            // Statistics Calculation
-            const stats = useMemo(() => {
-                const totalPnL = trades.reduce((sum, t) => sum + Number(t.pnl), 0);
-                const wins = trades.filter(t => Number(t.pnl) > 0).length;
-                const winRate = trades.length > 0 ? (wins / trades.length * 100).toFixed(1) : 0;
-                const avgRR = trades.length > 0 ? (trades.reduce((sum, t) => sum + Number(t.rr), 0) / trades.length).toFixed(2) : 0;
-                
-                // Streak Logic
-                let currentStreak = 0;
-                for (let i = 0; i < trades.length; i++) {
-                    if (trades[i].pnl > 0) currentStreak++;
-                    else break;
-                }
-                return { totalPnL, winRate, avgRR, currentStreak };
+                localStorage.setItem('gold_journal_v1', JSON.stringify(trades));
             }, [trades]);
 
-            const addTrade = (trade) => {
-                setTrades([trade, ...trades]);
-                setIsModalOpen(false);
-            };
-
-            const exportData = () => {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trades));
-                const downloadAnchorNode = document.createElement('a');
-                downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", "gold_trades_backup.json");
-                downloadAnchorNode.click();
-            };
+            const stats = useMemo(() => {
+                const total = trades.reduce((s, t) => s + Number(t.pnl), 0);
+                const wins = trades.filter(t => t.pnl > 0).length;
+                const wr = trades.length > 0 ? (wins / trades.length * 100).toFixed(1) : 0;
+                return { total, wr };
+            }, [trades]);
 
             return (
                 <div className={isDarkMode ? 'dark' : ''}>
-                    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-24">
-                        
-                        {/* Header */}
-                        <header className="p-5 flex justify-between items-center sticky top-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md z-10 border-b dark:border-slate-800">
-                            <h1 className="text-xl font-black text-yellow-500 tracking-tighter">GOLD PRO 📀</h1>
-                            <div className="flex gap-3">
-                                <button onClick={exportData} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-xl">📤</button>
-                                <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-xl">
-                                    {isDarkMode ? '☀️' : '🌙'}
-                                </button>
-                            </div>
+                    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20">
+                        <header className="p-5 flex justify-between items-center border-b dark:border-slate-800">
+                            <h1 className="text-xl font-black text-yellow-500">GOLD PRO 📀</h1>
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 bg-slate-200 dark:bg-slate-800 rounded-xl">
+                                {isDarkMode ? '☀️' : '🌙'}
+                            </button>
                         </header>
 
-                        {/* Quick Stats Bar */}
-                        <div className="flex overflow-x-auto p-4 gap-4 no-scrollbar">
-                            <StatCard label="Net PnL" value={`$${stats.totalPnL}`} color={stats.totalPnL >= 0 ? 'text-green-500' : 'text-red-500'} />
-                            <StatCard label="Win Rate" value={`${stats.winRate}%`} />
-                            <StatCard label="Avg R:R" value={stats.avgRR} />
-                            <StatCard label="Streak" value={`${stats.currentStreak} 🔥`} />
+                        <div className="flex p-4 gap-4 overflow-x-auto no-scrollbar">
+                            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl min-w-[140px] border dark:border-slate-800">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">Net PnL</p>
+                                <p className={`text-xl font-black ${stats.total >= 0 ? 'text-green-500' : 'text-red-500'}`}>${stats.total}</p>
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl min-w-[140px] border dark:border-slate-800">
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">Win Rate</p>
+                                <p className="text-xl font-black text-yellow-500">{stats.wr}%</p>
+                            </div>
                         </div>
 
-                        {/* Main Content */}
                         <main className="p-4">
-                            {activeTab === 'journal' ? (
-                                <JournalView trades={trades} />
-                            ) : (
-                                <DashboardView trades={trades} stats={stats} />
-                            )}
+                            {activeTab === 'journal' ? <Journal trades={trades} /> : <Stats trades={trades} />}
                         </main>
 
-                        {/* Navigation Bar */}
-                        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 flex justify-around items-center z-20">
-                            <button onClick={() => setActiveTab('journal')} className={`flex flex-col items-center ${activeTab === 'journal' ? 'text-yellow-500' : 'text-slate-400'}`}>
-                                <span className="text-xs font-bold uppercase">Journal</span>
-                            </button>
-                            <button onClick={() => setIsModalOpen(true)} className="bg-yellow-500 text-black w-14 h-14 rounded-full flex items-center justify-center -mt-10 shadow-xl border-4 border-slate-50 dark:border-slate-950">
-                                <span className="text-2xl font-bold">+</span>
-                            </button>
-                            <button onClick={() => setActiveTab('dash')} className={`flex flex-col items-center ${activeTab === 'dash' ? 'text-yellow-500' : 'text-slate-400'}`}>
-                                <span className="text-xs font-bold uppercase">Stats</span>
-                            </button>
+                        <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t dark:border-slate-800 p-4 flex justify-around">
+                            <button onClick={() => setActiveTab('journal')} className={`font-bold ${activeTab === 'journal' ? 'text-yellow-500' : 'text-slate-400'}`}>JOURNAL</button>
+                            <button onClick={() => setIsModalOpen(true)} className="bg-yellow-500 text-black w-12 h-12 rounded-full font-bold text-2xl -mt-8 shadow-lg">+</button>
+                            <button onClick={() => setActiveTab('stats')} className={`font-bold ${activeTab === 'stats' ? 'text-yellow-500' : 'text-slate-400'}`}>STATS</button>
                         </nav>
 
-                        {/* Add Trade Bottom Sheet */}
-                        {isModalOpen && <AddTradeModal onSave={addTrade} onClose={() => setIsModalOpen(false)} balance={balance} />}
+                        {isModalOpen && <Modal onSave={(t) => {setTrades([t, ...trades]); setIsModalOpen(false)}} onClose={() => setIsModalOpen(false)} />}
                     </div>
                 </div>
             );
         }
-
-        // --- Sub Components ---
-
-        function StatCard({ label, value, color = "text-yellow-500" }) {
-            return (
-                <div className="bg-white dark:bg-slate-900 min-w-[130px] p-4 rounded-2xl border dark:border-slate-800 shadow-sm">
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">{label}</p>
-                    <p className={`text-xl font-black ${color}`}>{value}</p>
-                </div>
-            );
-        }
-
-        function JournalView({ trades }) {
-            if (trades.length === 0) return (
-                <div className="text-center py-20 text-slate-500">
-                    <p>ยังไม่มีเทรด? กดปุ่ม + เพื่อเริ่มบันทึก 🚀</p>
-                </div>
-            );
+        function Journal({ trades }) {
             return (
                 <div className="space-y-3">
                     {trades.map(t => (
-                        <div key={t.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl flex justify-between items-center border dark:border-slate-800 relative overflow-hidden group">
-                            <div className={`absolute left-0 top-0 bottom-0 w-1 ${t.pnl >= 0 ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded ${t.side === 'BUY' ? 'bg-blue-500/10 text-blue-500' : 'bg-red-500/10 text-red-500'}`}>{t.side}</span>
-                                    <span className="text-[10px] text-slate-500">{new Date(t.date).toLocaleString('th-TH')}</span>
-                                </div>
-                                <h4 className="font-bold">{t.strategy} {t.emotion}</h4>
-                            </div>
-                            <div className="text-right">
-                                <p className={`font-black ${t.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {t.pnl >= 0 ? `+$${t.pnl}` : `-$${Math.abs(t.pnl)}`}
-                                </p>
-                                <p className="text-[10px] text-slate-500 font-bold">R:R {t.rr}</p>
-                            </div>
+                        <div key={t.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border dark:border-slate-800 flex justify-between border-l-4 border-l-yellow-500">
+                            <div><p className="text-xs font-bold">{t.side} @{t.entry}</p><p className="text-[10px] text-slate-500">{t.emotion}</p></div>
+                            <div className="text-right"><p className={`font-black ${t.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>${t.pnl}</p></div>
                         </div>
                     ))}
                 </div>
             );
         }
 
-        function DashboardView({ trades, stats }) {
-            const chartData = useMemo(() => {
-                let current = 0;
-                return trades.slice().reverse().map((t, i) => {
-                    current += Number(t.pnl);
-                    return { name: i + 1, pnl: current };
-                });
-            }, [trades]);
-
+        function Stats({ trades }) {
+            const data = trades.slice().reverse().map((t, i) => ({ n: i+1, p: t.pnl }));
             return (
-                <div className="space-y-6">
-                    <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border dark:border-slate-800 h-64">
-                        <h3 className="text-xs font-bold text-slate-500 mb-4 uppercase">Equity Curve ($)</h3>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="colorPnL" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#EAB308" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#EAB308" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <XAxis dataKey="name" hide />
-                                <YAxis hide domain={['auto', 'auto']} />
-                                <Tooltip contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px'}} />
-                                <Area type="monotone" dataKey="pnl" stroke="#EAB308" strokeWidth={3} fill="url(#colorPnL)" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                    {/* Add more charts as needed */}
+                <div className="h-64 bg-white dark:bg-slate-900 p-4 rounded-2xl border dark:border-slate-800">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data}><Area type="monotone" dataKey="p" stroke="#EAB308" fill="#EAB30833" strokeWidth={3} /></AreaChart>
+                    </ResponsiveContainer>
                 </div>
             );
         }
 
-        function AddTradeModal({ onSave, onClose, balance }) {
-            const [entry, setEntry] = useState('');
-            const [sl, setSl] = useState('');
-            const [tp, setTp] = useState('');
+        function Modal({ onSave, onClose }) {
+            const [pnl, setPnl] = useState('');
             const [side, setSide] = useState('BUY');
-            const [emotion, setEmotion] = useState('😌');
-            const [strategy, setStrategy] = useState('SMC');
-
-            const rr = useMemo(() => {
-                if (!entry || !sl || !tp) return 0;
-                const risk = Math.abs(entry - sl);
-                const reward = Math.abs(tp - entry);
-                return (reward / risk).toFixed(2);
-            }, [entry, sl, tp]);
-
-            const handleSave = () => {
-                const pnl = (rr * 100).toFixed(0); // Mock PnL Logic: Win = RR*100, Loss = -100
-                const result = Math.random() > 0.4 ? Number(pnl) : -100; // Mock Random Outcome
-                
-                onSave({
-                    id: Date.now(),
-                    date: new Date().toISOString(),
-                    entry, sl, tp, side, emotion, strategy, rr,
-                    pnl: result
-                });
-            };
-
             return (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-black">NEW TRADE</h2>
-                            <button onClick={onClose} className="p-2">✕</button>
+                <div className="fixed inset-0 bg-black/80 flex items-center p-4 z-50">
+                    <div className="bg-white dark:bg-slate-900 w-full p-6 rounded-3xl">
+                        <h2 className="font-black mb-4 text-center text-xl">NEW TRADE</h2>
+                        <div className="flex gap-2 mb-4">
+                            <button onClick={() => setSide('BUY')} className={`flex-1 p-2 rounded-xl font-bold ${side === 'BUY' ? 'bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>BUY</button>
+                            <button onClick={() => setSide('SELL')} className={`flex-1 p-2 rounded-xl font-bold ${side === 'SELL' ? 'bg-red-500 text-white' : 'bg-slate-100 dark:bg-slate-800'}`}>SELL</button>
                         </div>
-                        
-                        <div className="flex gap-2 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                            {['BUY', 'SELL'].map(s => (
-                                <button key={s} onClick={() => setSide(s)} className={`flex-1 py-2 rounded-lg font-bold text-xs transition-all ${side === s ? (s === 'BUY' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white') : 'text-slate-500'}`}>{s}</button>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                            <InputField label="Entry" value={entry} onChange={setEntry} />
-                            <InputField label="SL" value={sl} onChange={setSl} />
-                            <InputField label="TP" value={tp} onChange={setTp} />
-                        </div>
-
-                        <div className="mb-6 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl">
-                            <div>
-                                <p className="text-[10px] text-slate-500 font-bold uppercase">Estimated R:R</p>
-                                <p className={`text-xl font-black ${rr >= 2 ? 'text-green-500' : 'text-yellow-500'}`}>{rr}</p>
-                            </div>
-                            <div className="flex gap-2">
-                                {['😌', '😐', '😰', '😤'].map(e => (
-                                    <button key={e} onClick={() => setEmotion(e)} className={`p-2 rounded-lg ${emotion === e ? 'bg-yellow-400' : 'bg-slate-200 dark:bg-slate-700'}`}>{e}</button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <button onClick={handleSave} className="w-full bg-yellow-500 text-black py-4 rounded-2xl font-black text-lg shadow-lg shadow-yellow-500/20 active:scale-95 transition-transform">SAVE TRADE 💾</button>
+                        <input type="number" placeholder="PnL ($)" value={pnl} onChange={e => setPnl(e.target.value)} className="w-full p-4 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-4 font-bold outline-none" />
+                        <button onClick={() => onSave({id: Date.now(), pnl: Number(pnl), side, entry: 'Gold', emotion: '😌'})} className="w-full bg-yellow-500 text-black p-4 rounded-2xl font-black text-lg">SAVE 💾</button>
+                        <button onClick={onClose} className="w-full text-slate-500 mt-4 font-bold">CLOSE</button>
                     </div>
                 </div>
             );
         }
-
-        const InputField = ({ label, value, onChange }) => (
-            <div>
-                <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">{label}</label>
-                <input type="number" value={value} onChange={e => onChange(e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl p-3 font-bold focus:ring-2 ring-yellow-500 outline-none" placeholder="0.00" />
-            </div>
-        );
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
