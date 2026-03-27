@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GoldJournal Pro</title>
+    <title>GoldJournal Pro B</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
 </head>
 <body class="bg-slate-950 text-white font-sans">
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip } = Recharts;
 
         function App() {
             const [trades, setTrades] = useState([]);
-            const [tab, setTab] = useState('journal');
             const [showAdd, setShowAdd] = useState(false);
+            const [pnl, setPnl] = useState('');
+            const [side, setSide] = useState('BUY');
+            const [emotion, setEmotion] = useState('😌');
 
             useEffect(() => {
-                const saved = localStorage.getItem('gold_v2');
+                const saved = localStorage.getItem('gold_v2b');
                 if (saved) setTrades(JSON.parse(saved));
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('gold_v2', JSON.stringify(trades));
+                localStorage.setItem('gold_v2b', JSON.stringify(trades));
             }, [trades]);
 
             const stats = useMemo(() => {
@@ -37,98 +37,69 @@
                 return { total, wr };
             }, [trades]);
 
-            const addTrade = (pnl, side, rr, emotion) => {
-                const newTrade = { id: Date.now(), pnl, side, rr, emotion, date: new Date().toISOString() };
+            const addTrade = () => {
+                if(!pnl) return;
+                const newTrade = { id: Date.now(), pnl, side, emotion, date: new Date().toLocaleDateString() };
                 setTrades([newTrade, ...trades]);
+                setPnl(''); setSide('BUY'); setEmotion('😌');
                 setShowAdd(false);
             };
 
-            const chartData = [...trades].reverse().reduce((acc, t, i) => {
-                const lastBalance = acc.length > 0 ? acc[acc.length - 1].p : 0;
-                acc.push({ n: i + 1, p: lastBalance + Number(t.pnl) });
-                return acc;
-            }, []);
-
             return (
-                <div className="min-h-screen pb-20">
-                    <header className="p-5 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-slate-950/90 backdrop-blur-md z-40">
-                        <h1 className="text-xl font-black text-yellow-500 italic">GOLD PRO</h1>
+                <div className="min-h-screen pb-24 p-4">
+                    <header className="flex justify-between items-center mb-6">
+                        <h1 className="text-xl font-black text-yellow-500 italic">GOLD PRO B</h1>
                         <div className="text-right">
-                            <p className="text-[10px] text-slate-500 font-bold uppercase">Net Profit</p>
+                            <p className="text-[10px] text-slate-500 font-bold">Net Profit</p>
                             <p className={`text-lg font-black ${stats.total >= 0 ? 'text-green-400' : 'text-red-400'}`}>${stats.total}</p>
                         </div>
                     </header>
 
-                    <div className="flex p-4 gap-3 overflow-x-auto no-scrollbar">
-                        <div className="bg-slate-900 p-4 rounded-2xl min-w-[120px] border border-slate-800">
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                             <p className="text-[9px] text-slate-500 font-bold">WIN RATE</p>
-                            <p className="text-lg font-black text-yellow-500">{stats.wr}%</p>
+                            <p className="text-xl font-black text-yellow-500">{stats.wr}%</p>
                         </div>
-                        <div className="bg-slate-900 p-4 rounded-2xl min-w-[120px] border border-slate-800">
+                        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                             <p className="text-[9px] text-slate-500 font-bold">TOTAL TRADES</p>
-                            <p className="text-lg font-black">{trades.length}</p>
+                            <p className="text-xl font-black">{trades.length}</p>
                         </div>
                     </div>
 
-                    <main className="p-4">
-                        {tab === 'journal' ? (
-                            <div className="space-y-3">
-                                {trades.map(t => (
-                                    <div key={t.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex justify-between items-center border-l-4 border-l-yellow-500">
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <span className={`text-[10px] font-bold px-2 rounded ${t.side === 'BUY' ? 'bg-blue-500' : 'bg-red-500'}`}>{t.side}</span>
-                                                <span className="text-[10px] text-slate-500">{new Date(t.date).toLocaleDateString()}</span>
-                                            </div>
-                                            <p className="font-bold mt-1">XAUUSD {t.emotion}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className={`font-black ${t.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{t.pnl >= 0 ? '+' : ''}${t.pnl}</p>
-                                            <p className="text-[10px] text-slate-500 uppercase">R:R {t.rr}</p>
-                                        </div>
+                    <div className="space-y-3">
+                        {trades.map(t => (
+                            <div key={t.id} className="bg-slate-900 p-4 rounded-2xl border border-slate-800 flex justify-between items-center border-l-4 border-l-yellow-500">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[10px] font-bold px-2 rounded ${t.side === 'BUY' ? 'bg-blue-500' : 'bg-red-500'}`}>{t.side}</span>
+                                        <span className="text-[10px] text-slate-500">{t.date}</span>
                                     </div>
-                                ))}
+                                    <p className="font-bold mt-1">XAUUSD {t.emotion}</p>
+                                </div>
+                                <div className="text-right p-1">
+                                    <p className={`text-lg font-black ${t.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{t.pnl >= 0 ? '+' : ''}${t.pnl}</p>
+                                </div>
                             </div>
-                        ) : (
-                            <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 h-64">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={chartData}>
-                                        <XAxis dataKey="n" hide />
-                                        <YAxis hide domain={['auto', 'auto']} />
-                                        <Tooltip contentStyle={{backgroundColor:'#0f172a', border:'none', borderRadius:'10px'}} />
-                                        <Area type="monotone" dataKey="p" stroke="#eab308" fill="#eab30822" strokeWidth={3} />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
-                    </main>
+                        ))}
+                    </div>
 
-                    <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-md border-t border-slate-800 p-4 flex justify-around items-center z-50">
-                        <button onClick={() => setTab('journal')} className={`text-[10px] font-bold ${tab === 'journal' ? 'text-yellow-500' : 'text-slate-500'}`}>JOURNAL</button>
-                        <button onClick={() => setShowAdd(true)} className="bg-yellow-500 text-black w-12 h-12 rounded-full font-bold text-2xl shadow-lg -mt-10">+</button>
-                        <button onClick={() => setTab('stats')} className={`text-[10px] font-bold ${tab === 'stats' ? 'text-yellow-500' : 'text-slate-500'}`}>STATS</button>
-                    </nav>
+                    <button onClick={() => setShowAdd(true)} className="fixed bottom-6 right-6 bg-yellow-500 text-black w-14 h-14 rounded-full font-bold text-3xl shadow-2xl z-40">+</button>
 
                     {showAdd && (
-                        <div className="fixed inset-0 bg-black/90 flex items-end p-4 z-[60]">
+                        <div className="fixed inset-0 bg-black/90 flex items-end p-4 z-50">
                             <div className="bg-slate-900 w-full p-6 rounded-3xl border border-slate-800 shadow-2xl">
                                 <h2 className="font-black text-xl mb-6">NEW TRADE 📀</h2>
                                 <div className="grid grid-cols-2 gap-3 mb-4">
-                                    <button id="bBtn" className="bg-blue-600 p-3 rounded-xl font-bold">BUY</button>
-                                    <button id="sBtn" className="bg-red-600 p-3 rounded-xl font-bold">SELL</button>
+                                    <button onClick={() => setSide('BUY')} className={`p-3 rounded-xl font-bold ${side === 'BUY' ? 'bg-blue-600' : 'bg-slate-800 text-slate-500'}`}>BUY</button>
+                                    <button onClick={() => setSide('SELL')} className={`p-3 rounded-xl font-bold ${side === 'SELL' ? 'bg-red-600' : 'bg-slate-800 text-slate-500'}`}>SELL</button>
                                 </div>
-                                <input id="iPnl" type="number" placeholder="PnL ($)" className="w-full p-4 bg-slate-800 rounded-2xl mb-4 font-bold outline-none" />
-                                <input id="iRr" type="number" placeholder="R:R Ratio" className="w-full p-4 bg-slate-800 rounded-2xl mb-4 font-bold outline-none" />
+                                <input type="number" value={pnl} onChange={e => setPnl(e.target.value)} placeholder="PnL ($)" className="w-full p-4 bg-slate-800 rounded-2xl mb-4 font-bold outline-none" />
                                 <div className="flex justify-around mb-6 text-2xl">
                                     {['😌', '😐', '😰', '😤'].map(e => (
-                                        <button key={e} onClick={() => window.selEmo = e} className="hover:scale-125 transition-transform">{e}</button>
+                                        <button key={e} onClick={() => setEmotion(e)} className={emotion === e ? 'scale-125 transition-transform p-1' : 'opacity-60'}>{e}</button>
                                     ))}
                                 </div>
-                                <button onClick={() => {
-                                    const p = document.getElementById('iPnl').value;
-                                    const r = document.getElementById('iRr').value;
-                                    if(p) addTrade(p, 'TRADE', r || '0', window.selEmo || '😌');
-                                }} className="w-full bg-yellow-500 text-black p-4 rounded-2xl font-black text-lg">SAVE DATA</button>
+                                <button onClick={addTrade} className="w-full bg-yellow-500 text-black p-4 rounded-2xl font-black text-lg">SAVE DATA</button>
                                 <button onClick={() => setShowAdd(false)} className="w-full text-slate-500 mt-4 font-bold">CLOSE</button>
                             </div>
                         </div>
