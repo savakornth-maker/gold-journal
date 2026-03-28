@@ -10,7 +10,7 @@
 <title>GoldJournal</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;font-size:13px}
+html,body{height:100%;overflow:hidden;font-size:13px;overscroll-behavior:none}
 body{font-family:-apple-system,sans-serif;background:#0d0c0a;color:#f0e6c8;max-width:430px;margin:0 auto}
 button,input,textarea{font-family:inherit;font-size:13px}
 button{cursor:pointer;-webkit-appearance:none}
@@ -19,7 +19,7 @@ input,textarea{-webkit-appearance:none;outline:none}
 #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 #hdr{flex-shrink:0;padding:10px 12px 0}
 #sbar{flex-shrink:0;overflow-x:auto;padding:5px 12px;white-space:nowrap}
-#cnt{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:60px}
+#cnt{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:80px;-webkit-overflow-scrolling:touch}
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#141210;border-top:1px solid #2a2520;display:flex;padding:6px 0 18px;z-index:100}
 .card{background:#161310;border-radius:10px;padding:9px 11px;border:1px solid #2a2520;margin-bottom:8px}
 .fi{width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:8px 10px;color:#f0e6c8;font-size:13px;outline:none}
@@ -275,7 +275,7 @@ function rJournal(){
     '</div>'+
     '<div style="padding:0 12px 4px"><span style="color:#8a7a5a;font-size:9px">'+fl.length+' เทรด</span></div>'+
     (fl.length===0?'<div style="text-align:center;color:#8a7a5a;padding:30px;font-size:12px">ไม่พบเทรด</div>':cards)+
-    '<div style="height:16px"></div>';
+    '<div style="height:30px"></div>';
 }
 
 // Dashboard
@@ -297,7 +297,7 @@ function rDash(){
 
   function C(title,body){return '<div class="card"><div style="color:#8a7a5a;font-size:10px;margin-bottom:6px">'+title+'</div>'+body+'</div>'}
 
-  document.getElementById("cnt").innerHTML='<div style="padding:0 12px 70px">'+
+  document.getElementById("cnt").innerHTML='<div style="padding:0 12px 80px">'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">'+
     [{i:"💰",l:"Total PnL",v:"$"+fm(s.tot),c:s.tot>=0?"#3ecf8e":"#fc8181"},{i:"🎯",l:"Win Rate",v:f2(s.wr)+"%",c:"#f6c90e"},{i:"📊",l:"Profit Factor",v:isFinite(s.pf)?f2(s.pf):"∞",c:s.pf>=1.5?"#3ecf8e":"#fc8181"},{i:"📉",l:"Max DD",v:"$"+f2(s.dd),c:"#fc8181"}].map(function(x){return '<div class="card" style="margin-bottom:0"><div style="color:#8a7a5a;font-size:10px">'+x.i+' '+x.l+'</div><div style="color:'+x.c+';font-size:19px;font-weight:800;margin-top:1px">'+x.v+'</div></div>'}).join("")+
     '</div>'+
@@ -329,7 +329,7 @@ function rCal(){
     var has=ts.length>0;
     dcells+='<div class="cday" onclick="selCal('+d+')" style="background:'+(has?(tot>0?"#1a3d2e":tot<0?"#3d1a1a":"#3d3010"):"transparent")+';border-color:'+(G.csel===d?"#f6c90e":has?(tot>0?"#3ecf8e":tot<0?"#fc8181":"#f6c90e"):"#2a2520")+'"><div style="color:'+(has?(tot>0?"#3ecf8e":tot<0?"#fc8181":"#f6c90e"):"#8a7a5a")+';font-size:11px;font-weight:'+(has?700:400)+'">'+d+'</div>'+(has?'<div style="color:'+(tot>0?"#3ecf8e":"#fc8181")+';font-size:7px">'+ts.length+'T</div>':'')+'</div>';
   }
-  document.getElementById("cnt").innerHTML='<div style="padding:0 12px 70px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><button onclick="prevM()" style="background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:6px 12px;color:#f0e6c8;cursor:pointer;font-size:14px">‹</button><span style="color:#f0e6c8;font-weight:700;font-size:13px">'+G.cdate.toLocaleString("th-TH",{month:"long",year:"numeric"})+'</span><button onclick="nextM()" style="background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:6px 12px;color:#f0e6c8;cursor:pointer;font-size:14px">›</button></div><div class="cal" style="margin-bottom:2px">'+["อา","จ","อ","พ","พฤ","ศ","ส"].map(function(d){return '<div style="text-align:center;color:#8a7a5a;font-size:9px;padding:2px 0">'+d+'</div>'}).join("")+'</div><div class="cal" style="margin-bottom:10px">'+blanks+dcells+'</div>'+(G.csel&&stl.length?'<div style="color:#f0e6c8;font-weight:700;margin-bottom:6px;font-size:12px">'+G.csel+"/"+("0"+(m+1)).slice(-2)+"/"+y+'</div>'+stl.map(function(x){var pv=pnl(x.entry,x.cp,x.sl,x.tp,x.lot,x.dir,x.result);return '<div style="background:#1c1814;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center"><div><span style="color:'+(x.dir==="BUY"?"#3ecf8e":"#fc8181")+';font-weight:700;margin-right:6px;font-size:12px">'+x.dir+'</span><span style="color:#8a7a5a;font-size:11px">'+(x.strat||"—")+" · "+x.tf+'</span>'+(x.ses?'<span style="color:#63b3ed;font-size:9px;margin-left:5px">'+x.ses+'</span>':'')+'</div><span style="color:'+(pv>0?"#3ecf8e":pv<0?"#fc8181":"#8a7a5a")+';font-weight:700;font-size:12px">'+(pv!=null?"$"+fm(pv):"Open")+'</span></div>'}).join(""):'')+'</div>';
+  document.getElementById("cnt").innerHTML='<div style="padding:0 12px 90px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><button onclick="prevM()" style="background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:6px 12px;color:#f0e6c8;cursor:pointer;font-size:14px">‹</button><span style="color:#f0e6c8;font-weight:700;font-size:13px">'+G.cdate.toLocaleString("th-TH",{month:"long",year:"numeric"})+'</span><button onclick="nextM()" style="background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:6px 12px;color:#f0e6c8;cursor:pointer;font-size:14px">›</button></div><div class="cal" style="margin-bottom:2px">'+["อา","จ","อ","พ","พฤ","ศ","ส"].map(function(d){return '<div style="text-align:center;color:#8a7a5a;font-size:9px;padding:2px 0">'+d+'</div>'}).join("")+'</div><div class="cal" style="margin-bottom:10px">'+blanks+dcells+'</div>'+(G.csel&&stl.length?'<div style="color:#f0e6c8;font-weight:700;margin-bottom:6px;font-size:12px">'+G.csel+"/"+("0"+(m+1)).slice(-2)+"/"+y+'</div>'+stl.map(function(x){var pv=pnl(x.entry,x.cp,x.sl,x.tp,x.lot,x.dir,x.result);return '<div style="background:#1c1814;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:center"><div><span style="color:'+(x.dir==="BUY"?"#3ecf8e":"#fc8181")+';font-weight:700;margin-right:6px;font-size:12px">'+x.dir+'</span><span style="color:#8a7a5a;font-size:11px">'+(x.strat||"—")+" · "+x.tf+'</span>'+(x.ses?'<span style="color:#63b3ed;font-size:9px;margin-left:5px">'+x.ses+'</span>':'')+'</div><span style="color:'+(pv>0?"#3ecf8e":pv<0?"#fc8181":"#8a7a5a")+';font-weight:700;font-size:12px">'+(pv!=null?"$"+fm(pv):"Open")+'</span></div>'}).join(""):'')+'</div>';
 }
 
 // Form
