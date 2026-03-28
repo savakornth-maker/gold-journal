@@ -245,9 +245,38 @@ async function fetchGold(){
 }
 
 function expJSON(){
-  var b=new Blob([JSON.stringify({trades:G.t,settings:{goal:G.goal,bal:G.bal,mrisk:G.mrisk}},null,2)],{type:"application/json"});
-  var a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="gold-"+td()+".json";a.click();
-  toast("Export OK","ok");
+  var data=JSON.stringify({trades:G.t,settings:{goal:G.goal,bal:G.bal,mrisk:G.mrisk}},null,2);
+  // Try Web Share API first (iOS PWA)
+  if(navigator.share){
+    var file=new File([data],"gold-journal-"+td()+".json",{type:"application/json"});
+    navigator.share({files:[file],title:"GoldJournal Backup"}).then(function(){
+      toast("Export OK","ok");
+    }).catch(function(){showExportModal(data)});
+  } else {
+    // Fallback: try download link
+    try{
+      var b=new Blob([data],{type:"application/json"});
+      var a=document.createElement("a");
+      a.href=URL.createObjectURL(b);
+      a.download="gold-"+td()+".json";
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      toast("Export OK","ok");
+    }catch(e){showExportModal(data);}
+  }
+}
+function showExportModal(data){
+  var old=document.getElementById("expmodal");if(old)old.remove();
+  var ov=document.createElement("div");ov.className="ov";ov.id="expmodal";
+  ov.innerHTML='<div class="sh"><div class="hndl"></div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'+
+    '<span style="color:#f0e6c8;font-size:15px;font-weight:700">📋 Copy JSON Backup</span>'+
+    '<button onclick="document.getElementById(\"expmodal\").remove()" style="background:none;border:none;color:#8a7a5a;font-size:20px">x</button></div>'+
+    '<div style="color:#8a7a5a;font-size:11px;margin-bottom:8px">กด Select All แล้ว Copy เก็บไว้ใน Notes</div>'+
+    '<textarea id="exportta" rows="10" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:8px;color:#f0e6c8;font-size:10px;font-family:monospace;resize:none;outline:none" readonly></textarea>'+
+    '<button onclick="var t=document.getElementById(\"exportta\");t.select();t.setSelectionRange(0,99999);document.execCommand(\"copy\");toast(\"Copied!\",\"ok\")" style="width:100%;margin-top:8px;background:#1a3d2e;border:1px solid #3ecf8e40;border-radius:9px;padding:10px;color:#3ecf8e;font-weight:700;cursor:pointer;font-size:13px">📋 Copy ทั้งหมด</button></div>';
+  document.body.appendChild(ov);
+  document.getElementById("exportta").value=data;
+  ov.onclick=function(e){if(e.target===ov)ov.remove()};
 }
 function impJSON(e){
   var f=e.target.files[0];if(!f)return;
@@ -460,6 +489,9 @@ function rmTag(tag){FS.tags=(FS.tags||[]).filter(function(t){return t!==tag});va
 function hdImg(inp){hdImgF(inp.files[0])}
 function hdImgF(file){if(!file||!file.type.match(/^image\//))return;var r=new FileReader();r.onload=function(e){FS.img=e.target.result.split(",")[1];rForm()};r.readAsDataURL(file)}
 function svForm(){
+  if(!FS.entry||+FS.entry===0){toast("กรุณากรอก Entry Price","err");return;}
+  if(!FS.sl||+FS.sl===0){toast("กรุณากรอก Stop Loss","err");return;}
+  if(!FS.tp||+FS.tp===0){toast("กรุณากรอก Take Profit","err");return;}
   var f=Object.assign({},FS,{id:FS.id||uid(),entry:+FS.entry,sl:+FS.sl,tp:+FS.tp,lot:+FS.lot,cp:FS.cp?+FS.cp:null});
   var rp=G.bal&&f.entry&&f.sl?(Math.abs(f.entry-f.sl)*(f.lot||0)*100/G.bal*100):null;
   if(rp&&rp>G.mrisk){document.getElementById("rmsg").textContent="Risk "+f2(rp)+"% เกินขีดจำกัด "+G.mrisk+"%";document.getElementById("rwarn").style.display="block"}
@@ -519,6 +551,13 @@ render();
 loadFromIDB();
 fetchGold();
 setInterval(fetchGold,300000);
+// Save when app goes to background
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="hidden"){svt();svs();}
+});
+// Save when page unloads
+window.addEventListener("pagehide",function(){svt();svs();});
+window.addEventListener("beforeunload",function(){svt();svs();});
 </script>
 </body>
 </html>
