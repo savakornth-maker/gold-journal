@@ -86,10 +86,83 @@ function mstrk(t,r){var m=0,c=0;t.slice().sort(function(a,b){return a.date<b.dat
 function rr(e,sl,tp){if(!e||!sl||!tp)return null;var r=Math.abs(e-sl),w=Math.abs(tp-e);return r===0?null:w/r}
 function pnl(e,cp,sl,tp,lot,dir,res){if(res==="Open")return null;var cl=cp||(res==="Win"?tp:sl);return(dir==="BUY"?cl-e:e-cl)*(lot||0)*100}
 
-function ldt(){try{var d=localStorage.getItem("gj3");return d?JSON.parse(d):smp();}catch(e){return smp()}}
-function svt(){try{localStorage.setItem("gj3",JSON.stringify(G.t))}catch(e){}}
-function lds(){try{var d=localStorage.getItem("gj3s");return d?JSON.parse(d):{goal:500,bal:10000,mrisk:2,dark:true};}catch(e){return{goal:500,bal:10000,mrisk:2,dark:true}}}
-function svs(){try{localStorage.setItem("gj3s",JSON.stringify({goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark}))}catch(e){}}
+// Storage: ใช้ IndexedDB เป็นหลัก, localStorage เป็น backup
+var DB=null;
+function openDB(cb){
+  if(DB){cb();return;}
+  var req=indexedDB.open("GoldJournal",1);
+  req.onupgradeneeded=function(e){
+    var db=e.target.result;
+    if(!db.objectStoreNames.contains("data"))db.createObjectStore("data");
+  };
+  req.onsuccess=function(e){DB=e.target.result;cb()};
+  req.onerror=function(){cb()};
+}
+function idbSet(key,val,cb){
+  try{
+    openDB(function(){
+      if(!DB){lsSet(key,val);if(cb)cb();return;}
+      var tx=DB.transaction("data","readwrite");
+      tx.objectStore("data").put(val,key);
+      tx.oncomplete=function(){lsSet(key,val);if(cb)cb()};
+      tx.onerror=function(){lsSet(key,val);if(cb)cb()};
+    });
+  }catch(e){lsSet(key,val);if(cb)cb()}
+}
+function idbGet(key,cb){
+  try{
+    openDB(function(){
+      if(!DB){cb(lsGet(key));return;}
+      var tx=DB.transaction("data","readonly");
+      var req=tx.objectStore("data").get(key);
+      req.onsuccess=function(){
+        var val=req.result;
+        if(val!=null){cb(val);}else{cb(lsGet(key));}
+      };
+      req.onerror=function(){cb(lsGet(key))};
+    });
+  }catch(e){cb(lsGet(key))}
+}
+function lsSet(key,val){try{localStorage.setItem(key,JSON.stringify(val))}catch(e){}}
+function lsGet(key){try{var d=localStorage.getItem(key);return d?JSON.parse(d):null}catch(e){return null}}
+
+function ldt(){var d=lsGet("gj3");return(d&&d.length)?d:smp()}
+function svt(){
+  var data=JSON.stringify(G.t);
+  lsSet("gj3",G.t);
+  idbSet("gj3",data,null);
+}
+function lds(){var d=lsGet("gj3s");return d||{goal:500,bal:10000,mrisk:2,dark:true}}
+function svs(){
+  var data={goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark};
+  lsSet("gj3s",data);
+  idbSet("gj3s",JSON.stringify(data),null);
+}
+// Load from IndexedDB on start (async)
+function loadFromIDB(){
+  idbGet("gj3",function(val){
+    if(val){
+      try{
+        var parsed=typeof val==="string"?JSON.parse(val):val;
+        if(parsed&&parsed.length&&parsed[0].entry){
+          G.t=parsed;lsSet("gj3",parsed);render();
+        }
+      }catch(e){}
+    }
+  });
+  idbGet("gj3s",function(val){
+    if(val){
+      try{
+        var parsed=typeof val==="string"?JSON.parse(val):val;
+        if(parsed){
+          G.goal=parsed.goal||500;G.bal=parsed.bal||10000;
+          G.mrisk=parsed.mrisk||2;G.dark=parsed.dark!==undefined?parsed.dark:true;
+          svs();
+        }
+      }catch(e){}
+    }
+  });
+}
 
 function smp(){return[
   {id:uid(),date:"2025-03-01",dir:"BUY",entry:2850,sl:2830,tp:2900,lot:0.5,result:"Win",strat:"Breakout",tf:"H4",ses:"London",note:"เข้าที่ breakout zone",tags:["breakout"],emo:"calm",img:null,cp:2900},
@@ -443,6 +516,7 @@ var fab=document.createElement("button");
 fab.id="fab";fab.innerHTML="+";fab.onclick=function(){openForm(null)};fab.style.display="none";
 document.getElementById("app").appendChild(fab);
 render();
+loadFromIDB();
 fetchGold();
 setInterval(fetchGold,300000);
 </script>
