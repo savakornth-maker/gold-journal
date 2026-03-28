@@ -73,6 +73,7 @@ svg{display:block}
 </div>
 
 <script>
+window.onerror=function(m,s,l,c,e){document.body.innerHTML='<div style="color:#fc8181;padding:20px;background:#1a0000;min-height:100vh;font-size:13px"><b>Error line '+l+':</b><br>'+m+"</div>";return true;};
 // ── Constants ──────────────────────────────────────────────────────────────────
 const EMOTIONS=[
   {key:"calm",   label:"สงบ", emoji:"😌",color:"#3ecf8e"},
@@ -653,12 +654,14 @@ else renderCalendar();
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────────
+try{
 const fabBtn=document.createElement(“button”);
 fabBtn.id=“fab”;fabBtn.innerHTML=“＋”;fabBtn.onclick=()=>openForm();fabBtn.style.display=“none”;
 document.getElementById(“app”).appendChild(fabBtn);
 render();
 fetchGold();
 setInterval(fetchGold,300000);
+}catch(e){document.body.innerHTML=’<div style="color:#fc8181;padding:20px;background:#1a0000;min-height:100vh;font-size:13px"><b>Init Error:</b><br>’+e.message+”</div>”;}
 </script>
 
 </body>
