@@ -42,11 +42,23 @@ textarea.fi{resize:none}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
-<div id="app">
+<div id="loginpage" style="position:fixed;inset:0;background:#0d0c0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;padding:40px 24px">
+  <div style="font-size:48px;margin-bottom:16px">⚜</div>
+  <div style="color:#f6c90e;font-size:26px;font-weight:800;margin-bottom:8px">GoldJournal</div>
+  <div style="color:#8a7a5a;font-size:14px;margin-bottom:48px">XAU/USD Trading Journal</div>
+  <button onclick="signInGoogle()" style="display:flex;align-items:center;gap:12px;background:#fff;border:none;border-radius:12px;padding:14px 24px;cursor:pointer;font-size:15px;font-weight:700;color:#1a1410;width:100%;max-width:280px;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,0.3)">
+    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    เข้าสู่ระบบด้วย Google
+  </button>
+  <div style="color:#8a7a5a;font-size:11px;margin-top:24px;text-align:center;line-height:1.6">ข้อมูลของคุณเก็บบน Cloud<br>ปลอดภัย แยกจากผู้ใช้คนอื่น</div>
+</div>
+<div id="app" style="display:none">
   <div id="hdr"></div>
   <div id="sbar"></div>
   <div id="cnt"></div>
@@ -75,40 +87,72 @@ var firebaseConfig = {
 };
 try{ firebase.initializeApp(firebaseConfig); } catch(e){}
 var db = null;
-try{ db = firebase.firestore(); } catch(e){}
-var DEVICE_ID = (function(){
-  var id = localStorage.getItem("gj_did");
-  if(!id){ id = "u" + Math.random().toString(36).slice(2,12); localStorage.setItem("gj_did", id); }
-  return id;
-})();
+var auth = null;
+var currentUser = null;
+try{ db = firebase.firestore(); auth = firebase.auth(); } catch(e){}
+
 function fbSave(key, data){
-  if(!db) return;
+  if(!db || !currentUser) return;
   try{
     var obj = {};
     obj[key] = JSON.stringify(data);
     obj["updated"] = Date.now();
-    db.collection("journals").doc(DEVICE_ID).set(obj, {merge:true});
+    db.collection("journals").doc(currentUser.uid).set(obj, {merge:true});
   }catch(e){}
 }
+
 function fbLoad(){
-  if(!db){ render(); return; }
-  db.collection("journals").doc(DEVICE_ID).get().then(function(doc){
+  if(!db || !currentUser){ render(); return; }
+  db.collection("journals").doc(currentUser.uid).get().then(function(doc){
     if(doc.exists){
       var d = doc.data();
-      if(d.trades){
-        try{
-          var t = JSON.parse(d.trades);
-          if(t && t.length && t[0].entry){ G.t = t; lsSet("gj3", t); render(); }
-        }catch(e){}
-      }
-      if(d.settings){
-        try{
-          var s = JSON.parse(d.settings);
-          if(s){ G.goal=s.goal||500; G.bal=s.bal||10000; G.mrisk=s.mrisk||2; G.dark=s.dark!==undefined?s.dark:true; svs(); }
-        }catch(e){}
-      }
+      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length&&t[0].entry){G.t=t;lsSet("gj3",t);}}catch(e){}}
+      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;svs();}}catch(e){}}
     }
-  }).catch(function(e){ console.log("Firebase load error:", e); });
+    render();
+  }).catch(function(){ render(); });
+}
+
+function signInGoogle(){
+  if(!auth) return;
+  var provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(function(e){
+    // Popup blocked on iOS PWA - use redirect
+    auth.signInWithRedirect(provider);
+  });
+}
+
+function signOut(){
+  if(!auth) return;
+  auth.signOut().then(function(){ currentUser=null; showLogin(); });
+}
+
+function showLogin(){
+  document.getElementById("app").style.display = "none";
+  var el = document.getElementById("loginpage");
+  if(el) el.style.display = "flex";
+}
+
+function hideLogin(){
+  document.getElementById("app").style.display = "flex";
+  var el = document.getElementById("loginpage");
+  if(el) el.style.display = "none";
+}
+
+// Watch auth state
+if(auth){
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      currentUser = user;
+      hideLogin();
+      fbLoad();
+    } else {
+      currentUser = null;
+      showLogin();
+    }
+  });
+  // Handle redirect result
+  auth.getRedirectResult().catch(function(e){});
 }
 
 var EMO=[
@@ -373,7 +417,7 @@ function svgDonut(w,l,o){
 // Render Header
 function rHdr(){
   var g=G.gold;
-  document.getElementById("hdr").innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px"><div><div style="color:#f6c90e;font-size:17px;font-weight:800">GoldJournal</div><div style="color:#8a7a5a;font-size:9px">XAU/USD Trading Journal</div></div><div style="display:flex;gap:5px;align-items:center"><div onclick="fetchGold()" style="background:#161310;border:1px solid #2a2520;border-radius:8px;padding:4px 8px;cursor:pointer;min-width:60px;text-align:center">'+(g?'<div style="color:#f6c90e;font-size:11px;font-weight:700">$'+g.p.toFixed(0)+'</div><div style="color:'+(g.c>=0?"#3ecf8e":"#fc8181")+';font-size:8px">'+(g.c>=0?"+":"")+g.c.toFixed(1)+'</div>':'<div style="color:#8a7a5a;font-size:9px">XAU/USD</div>')+'</div><button onclick="toggleDark()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">'+(G.dark?"☀️":"🌙")+'</button><button onclick="openSett()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">⚙️</button></div></div>';
+  document.getElementById("hdr").innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px"><div><div style="color:#f6c90e;font-size:17px;font-weight:800">GoldJournal</div><div style="color:#8a7a5a;font-size:9px">XAU/USD Trading Journal</div></div><div style="display:flex;gap:5px;align-items:center"><div onclick="fetchGold()" style="background:#161310;border:1px solid #2a2520;border-radius:8px;padding:4px 8px;cursor:pointer;min-width:60px;text-align:center">'+(g?'<div style="color:#f6c90e;font-size:11px;font-weight:700">$'+g.p.toFixed(0)+'</div><div style="color:'+(g.c>=0?"#3ecf8e":"#fc8181")+';font-size:8px">'+(g.c>=0?"+":"")+g.c.toFixed(1)+'</div>':'<div style="color:#8a7a5a;font-size:9px">XAU/USD</div>')+'</div><button onclick="toggleDark()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">'+(G.dark?"☀️":"🌙")+'</button><button onclick="openSett()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">⚙️</button><button onclick="signOut()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:11px;color:#8a7a5a">ออก</button></div></div>';
 }
 
 // Render Stats Bar
@@ -601,18 +645,14 @@ try {
 var fab=document.createElement("button");
 fab.id="fab";fab.innerHTML="+";fab.onclick=function(){openForm(null)};fab.style.display="none";
 document.getElementById("app").appendChild(fab);
-render();
-fbLoad();
-loadFromIDB();
+// Auth handles render via onAuthStateChanged
+// Just start gold price fetch
 fetchGold();
 setInterval(fetchGold,300000);
-// Save when app goes to background
-document.addEventListener("visibilitychange",function(){
-  if(document.visibilityState==="hidden"){svt();svs();}
-});
-// Save when page unloads
+// visibilitychange save
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden"){svt();svs();}});
 window.addEventListener("pagehide",function(){svt();svs();});
-window.addEventListener("beforeunload",function(){svt();svs();});
+
 </script>
 </body>
 </html>
