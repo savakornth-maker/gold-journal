@@ -40,6 +40,10 @@ textarea.fi{resize:none}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .cday{border-radius:6px;padding:4px 1px;text-align:center;min-height:38px;border:1px solid #2a2520;cursor:pointer}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div id="app">
@@ -59,6 +63,54 @@ textarea.fi{resize:none}
   <button onclick="document.getElementById('rwarn').style.display='none'" style="margin-top:10px;width:100%;background:#fc8181;border:none;border-radius:7px;padding:8px;color:#fff;font-weight:700;cursor:pointer">OK</button>
 </div>
 <script>
+// ── Firebase ──────────────────────────────────────────────────────────────────
+var firebaseConfig = {
+  apiKey: "AIzaSyAdpF6MhHmlkAukNFUJzBL_Zx4Q_u607KU",
+  authDomain: "gold-journal-f724e.firebaseapp.com",
+  projectId: "gold-journal-f724e",
+  storageBucket: "gold-journal-f724e.firebasestorage.app",
+  messagingSenderId: "229085203148",
+  appId: "1:229085203148:web:e35eec88aa84788461d069",
+  measurementId: "G-5V3PWD15PD"
+};
+try{ firebase.initializeApp(firebaseConfig); } catch(e){}
+var db = null;
+try{ db = firebase.firestore(); } catch(e){}
+var DEVICE_ID = (function(){
+  var id = localStorage.getItem("gj_did");
+  if(!id){ id = "u" + Math.random().toString(36).slice(2,12); localStorage.setItem("gj_did", id); }
+  return id;
+})();
+function fbSave(key, data){
+  if(!db) return;
+  try{
+    var obj = {};
+    obj[key] = JSON.stringify(data);
+    obj["updated"] = Date.now();
+    db.collection("journals").doc(DEVICE_ID).set(obj, {merge:true});
+  }catch(e){}
+}
+function fbLoad(){
+  if(!db){ render(); return; }
+  db.collection("journals").doc(DEVICE_ID).get().then(function(doc){
+    if(doc.exists){
+      var d = doc.data();
+      if(d.trades){
+        try{
+          var t = JSON.parse(d.trades);
+          if(t && t.length && t[0].entry){ G.t = t; lsSet("gj3", t); render(); }
+        }catch(e){}
+      }
+      if(d.settings){
+        try{
+          var s = JSON.parse(d.settings);
+          if(s){ G.goal=s.goal||500; G.bal=s.bal||10000; G.mrisk=s.mrisk||2; G.dark=s.dark!==undefined?s.dark:true; svs(); }
+        }catch(e){}
+      }
+    }
+  }).catch(function(e){ console.log("Firebase load error:", e); });
+}
+
 var EMO=[
   {key:"calm",lbl:"สงบ",em:"😌",col:"#3ecf8e"},
   {key:"neutral",lbl:"ปกติ",em:"😐",col:"#a0aec0"},
@@ -131,12 +183,14 @@ function svt(){
   var data=JSON.stringify(G.t);
   lsSet("gj3",G.t);
   idbSet("gj3",data,null);
+  fbSave("trades",G.t);
 }
 function lds(){var d=lsGet("gj3s");return d||{goal:500,bal:10000,mrisk:2,dark:true}}
 function svs(){
   var data={goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark};
   lsSet("gj3s",data);
   idbSet("gj3s",JSON.stringify(data),null);
+  fbSave("settings", data);
 }
 // Load from IndexedDB on start (async)
 function loadFromIDB(){
@@ -548,6 +602,7 @@ var fab=document.createElement("button");
 fab.id="fab";fab.innerHTML="+";fab.onclick=function(){openForm(null)};fab.style.display="none";
 document.getElementById("app").appendChild(fab);
 render();
+fbLoad();
 loadFromIDB();
 fetchGold();
 setInterval(fetchGold,300000);
