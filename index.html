@@ -101,7 +101,8 @@ try { db = firebase.firestore(); auth = firebase.auth(); } catch(e) {}
 function signInGoogle() {
   if (!auth) return;
   var p = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(p).catch(function() { auth.signInWithRedirect(p); });
+  // Use redirect for iOS PWA/Safari (popup is blocked)
+  auth.signInWithRedirect(p);
 }
 function signOut() {
   if (!auth) return;
@@ -120,7 +121,14 @@ if (auth) {
       document.getElementById("loginpage").style.display = "flex";
     }
   });
-  auth.getRedirectResult().catch(function() {});
+  // Handle redirect result after Google login
+  auth.getRedirectResult().then(function(result) {
+    // handled by onAuthStateChanged
+  }).catch(function(e) {
+    if(e && e.code && e.code !== 'auth/no-auth-event') {
+      console.log('Redirect error:', e.code);
+    }
+  });
 }
 function fbSave(key, data) {
   if (!db || !CU) return;
