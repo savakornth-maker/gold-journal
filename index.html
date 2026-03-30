@@ -349,16 +349,19 @@ function periodTabsHtml(curPeriod, tag, fromKey, toKey){
   var fVal = G[fromKey]||"", tVal = G[toKey]||"";
   var isCustom = curPeriod==="custom";
   var html = '<div style="padding:4px 12px 2px"><div style="display:flex;gap:5px;margin-bottom:4px">';
-  [{k:"day",l:"วันนี้"},{k:"custom",l:"ช่วงวัน"},{k:"all",l:"ทั้งหมด"}].forEach(function(p){
+  var tabs = [{k:"day",l:"วันนี้"},{k:"custom",l:"ช่วงวัน"},{k:"all",l:"ทั้งหมด"}];
+  for(var i=0;i<tabs.length;i++){
+    var p = tabs[i];
     var act = curPeriod===p.k;
-    html += '<button class="ptab'+(act?" act":"")+'" onclick="setP(''+tag+'',''+p.k+'')">' +p.l+'</button>';
-  });
+    var style = act?"border-color:#f6c90e;color:#f6c90e;background:#3d301022":"";
+    html += '<button class="ptab" style="'+style+'" data-tag="'+tag+'" data-k="'+p.k+'" onclick="setP(this.getAttribute('data-tag'),this.getAttribute('data-k'))">'+p.l+'</button>';
+  }
   html += '</div>';
   if(isCustom){
     html += '<div style="display:flex;gap:5px;align-items:center;margin-bottom:4px">';
-    html += '<input type="date" value="'+fVal+'" onchange="G[''+fromKey+'']=this.value;setP(''+tag+'','custom')" style="flex:1;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;color:'+(fVal?"#f0e6c8":"#8a7a5a")+';font-size:10px;outline:none"/>';
+    html += '<input type="date" value="'+fVal+'" data-key="'+fromKey+'" data-tag="'+tag+'" onchange="G[this.getAttribute('data-key')]=this.value;setP(this.getAttribute('data-tag'),'custom')" style="flex:1;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;color:'+(fVal?"#f0e6c8":"#8a7a5a")+';font-size:10px;outline:none"/>';
     html += '<span style="color:#8a7a5a;font-size:10px">–</span>';
-    html += '<input type="date" value="'+tVal+'" onchange="G[''+toKey+'']=this.value;setP(''+tag+'','custom')" style="flex:1;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;color:'+(tVal?"#f0e6c8":"#8a7a5a")+';font-size:10px;outline:none"/>';
+    html += '<input type="date" value="'+tVal+'" data-key="'+toKey+'" data-tag="'+tag+'" onchange="G[this.getAttribute('data-key')]=this.value;setP(this.getAttribute('data-tag'),'custom')" style="flex:1;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;color:'+(tVal?"#f0e6c8":"#8a7a5a")+';font-size:10px;outline:none"/>';
     html += '</div>';
   }
   html += '</div>';
@@ -533,13 +536,23 @@ function rCal(){
     var ts=dmap[d]||[];
     var tot=ts.reduce(function(s,x){return s+(pnl(x.entry,x.cp,x.sl,x.tp,x.lot,x.dir,x.result)||0);},0);
     var has=ts.length>0;
-    dcells+='<div class="cday" onclick="selCal('+d+')" style="background:'+(has?(tot>0?"#1a3d2e":tot<0?"#3d1a1a":"#3d3010"):"transparent")+';border-color:'+(G.csel===d?"#f6c90e":has?(tot>0?"#3ecf8e":tot<0?"#fc8181":"#f6c90e"):"#2a2520")+'">'+
-      '<div style="color:'+(has?(tot>0?"#3ecf8e":tot<0?"#fc8181":"#f6c90e"):"#8a7a5a")+';font-size:11px;font-weight:'+(has?700:400)+'">'+d+'</div>'+
-      (has?'<div style="color:'+(tot>0?"#3ecf8e":"#fc8181")+';font-size:7px">\'+ts.length+\'T</div>\'+(tot!==0?\'<div style="color:\'+(tot>0?\'#3ecf8e\':\'#fc8181\')+\';font-size:7px;font-weight:700">\'+(tot>0?\'+\':\'\') +f2(tot,0)+\'$</div>\':\'\'>':'')+
-    '</div>';
+    var totStr="";
+    if(has&&tot!==0){totStr=(tot>0?"+":"")+f2(tot,0)+"$";}
+    var bgcol=has?(tot>0?"#1a3d2e":tot<0?"#3d1a1a":"#3d3010"):"transparent";
+    var brdcol=G.csel===d?"#f6c90e":has?(tot>0?"#3ecf8e":tot<0?"#fc8181":"#f6c90e"):"#2a2520";
+    var tcol=has?(tot>0?"#3ecf8e":tot<0?"#fc8181":"#f6c90e"):"#8a7a5a";
+    var pcol=tot>0?"#3ecf8e":"#fc8181";
+    var cell='<div class="cday" onclick="selCal('+d+')" style="background:'+bgcol+';border-color:'+brdcol+'">';
+    cell += '<div style="color:'+tcol+';font-size:11px;font-weight:'+(has?700:400)+'">'+d+'</div>';
+    if(has){
+      cell += '<div style="color:'+pcol+';font-size:7px;line-height:1.3">'+ts.length+'T';
+      if(totStr) cell += '<br>'+totStr;
+      cell += '</div>';
+    }
+    cell += '</div>';
+    dcells += cell;
   }
-
-  // Selected day detail
+    // Selected day detail
   var selHtml = "";
   if(G.csel && dmap[G.csel]){
     var selTs = dmap[G.csel];
@@ -755,7 +768,7 @@ function impJSON(e){
 // ── Controls ───────────────────────────────────────────────────────────────────
 function setTab(t){G.tab=t;render();}
 function toggleDark(){G.dark=!G.dark;svs();document.body.style.background=G.dark?"#0d0c0a":"#f5f0e8";rHdr();}
-function tChip(c){var dg=["BUY","SELL"],rg=["Win","Loss","Open"],ch=G.chips.slice();if(dg.indexOf(c)>=0)ch=ch.filter(function(x){return dg.indexOf(x)<0;});if(rg.indexOf(c)>=0)ch=ch.filter(function(x){return rg.indexOf(x)<0;});G.chips=ch.indexOf(c)>=0?ch.filter(function(x){return x!==c;}):[...ch,c];rJournal();}
+function tChip(c){var dg=["BUY","SELL"],rg=["Win","Loss","Open"],ch=G.chips.slice();if(dg.indexOf(c)>=0)ch=ch.filter(function(x){return dg.indexOf(x)<0;});if(rg.indexOf(c)>=0)ch=ch.filter(function(x){return rg.indexOf(x)<0;});G.chips=ch.indexOf(c)>=0?ch.filter(function(x){return x!==c;}):ch.concat([c]);rJournal();}
 function tSort(k){if(G.sk===k)G.sd=G.sd==="asc"?"desc":"asc";else{G.sk=k;G.sd="desc";}rJournal();}
 
 
