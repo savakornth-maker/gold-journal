@@ -56,12 +56,21 @@ textarea.fi{resize:none}
 <div id="loginpage">
   <div style="font-size:52px;margin-bottom:14px">⚜</div>
   <div style="color:#f6c90e;font-size:26px;font-weight:800;margin-bottom:6px">GoldJournal</div>
-  <div style="color:#8a7a5a;font-size:13px;margin-bottom:48px">XAU/USD Trading Journal</div>
-  <button onclick="signInGoogle()" style="display:flex;align-items:center;gap:12px;background:#fff;border:none;border-radius:12px;padding:14px 24px;cursor:pointer;font-size:15px;font-weight:700;color:#1a1410;width:100%;max-width:280px;justify-content:center;box-shadow:0 4px 20px rgba(0,0,0,.4)">
-    <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-    เข้าสู่ระบบด้วย Google
-  </button>
-  <div style="color:#8a7a5a;font-size:11px;margin-top:24px;text-align:center;line-height:1.8">ข้อมูลของคุณเก็บบน Cloud อย่างปลอดภัย<br>แยกจากผู้ใช้คนอื่น</div>
+  <div style="color:#8a7a5a;font-size:13px;margin-bottom:32px">XAU/USD Trading Journal</div>
+  <div id="login-err" style="color:#fc8181;font-size:12px;margin-bottom:12px;text-align:center;display:none"></div>
+  <div style="width:100%;max-width:300px">
+    <div style="margin-bottom:10px">
+      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">Email</label>
+      <input id="li-email" type="email" placeholder="your@email.com" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:14px;outline:none"/>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">Password</label>
+      <input id="li-pass" type="password" placeholder="รหัสผ่าน" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button onclick="doLogin()" style="width:100%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;border-radius:12px;padding:14px;color:#000;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:10px">เข้าสู่ระบบ</button>
+    <button onclick="doRegister()" style="width:100%;background:none;border:1px solid #2a2520;border-radius:12px;padding:12px;color:#8a7a5a;font-size:13px;cursor:pointer">สมัครสมาชิกใหม่</button>
+  </div>
+  <div style="color:#8a7a5a;font-size:10px;margin-top:20px;text-align:center;line-height:1.8">ข้อมูลของคุณเก็บบน Cloud อย่างปลอดภัย<br>แยกจากผู้ใช้คนอื่น</div>
 </div>
 
 <!-- Main App -->
@@ -98,15 +107,48 @@ try { firebase.initializeApp(firebaseConfig); } catch(e) {}
 var db = null, auth = null, CU = null;
 try { db = firebase.firestore(); auth = firebase.auth(); } catch(e) {}
 
-function signInGoogle() {
-  if (!auth) return;
-  var p = new firebase.auth.GoogleAuthProvider();
-  // Use redirect for iOS PWA/Safari (popup is blocked)
-  auth.signInWithRedirect(p);
+function showLoginErr(msg){
+  var el=document.getElementById("login-err");
+  if(el){el.textContent=msg;el.style.display="block";}
+}
+function doLogin(){
+  var email=(document.getElementById("li-email")||{}).value||"";
+  var pass=(document.getElementById("li-pass")||{}).value||"";
+  if(!email||!pass){showLoginErr("กรุณากรอก Email และ Password");return;}
+  if(!auth){showLoginErr("Firebase ไม่พร้อม");return;}
+  document.querySelector("#loginpage button").textContent="กำลังเข้าสู่ระบบ...";
+  auth.signInWithEmailAndPassword(email,pass).catch(function(e){
+    var msg="เข้าสู่ระบบไม่ได้";
+    if(e.code==="auth/user-not-found")msg="ไม่พบ Email นี้ กรุณาสมัครสมาชิก";
+    else if(e.code==="auth/wrong-password")msg="รหัสผ่านไม่ถูกต้อง";
+    else if(e.code==="auth/invalid-email")msg="Email ไม่ถูกต้อง";
+    else if(e.code==="auth/invalid-credential")msg="Email หรือ Password ไม่ถูกต้อง";
+    showLoginErr(msg);
+    var btn=document.querySelector("#loginpage button");
+    if(btn)btn.textContent="เข้าสู่ระบบ";
+  });
+}
+function doRegister(){
+  var email=(document.getElementById("li-email")||{}).value||"";
+  var pass=(document.getElementById("li-pass")||{}).value||"";
+  if(!email||!pass){showLoginErr("กรุณากรอก Email และ Password");return;}
+  if(pass.length<6){showLoginErr("Password ต้องมีอย่างน้อย 6 ตัวอักษร");return;}
+  if(!auth){showLoginErr("Firebase ไม่พร้อม");return;}
+  auth.createUserWithEmailAndPassword(email,pass).catch(function(e){
+    var msg="สมัครไม่สำเร็จ";
+    if(e.code==="auth/email-already-in-use")msg="Email นี้ถูกใช้แล้ว กรุณาเข้าสู่ระบบ";
+    else if(e.code==="auth/invalid-email")msg="Email ไม่ถูกต้อง";
+    else if(e.code==="auth/weak-password")msg="Password ต้องมีอย่างน้อย 6 ตัวอักษร";
+    showLoginErr(msg);
+  });
 }
 function signOut() {
   if (!auth) return;
-  auth.signOut().then(function() { CU = null; document.getElementById("app").style.display="none"; document.getElementById("loginpage").style.display="flex"; });
+  auth.signOut().then(function() {
+    CU = null;
+    document.getElementById("app").style.display="none";
+    document.getElementById("loginpage").style.display="flex";
+  });
 }
 if (auth) {
   auth.onAuthStateChanged(function(u) {
@@ -121,14 +163,7 @@ if (auth) {
       document.getElementById("loginpage").style.display = "flex";
     }
   });
-  // Handle redirect result after Google login
-  auth.getRedirectResult().then(function(result) {
-    // handled by onAuthStateChanged
-  }).catch(function(e) {
-    if(e && e.code && e.code !== 'auth/no-auth-event') {
-      console.log('Redirect error:', e.code);
-    }
-  });
+  // No redirect needed for email auth
 }
 function fbSave(key, data) {
   if (!db || !CU) return;
@@ -328,7 +363,7 @@ function svgDonut(w,l,o){
 
 // ── Header ─────────────────────────────────────────────────────────────────────
 function rHdr(){
-  var uname = CU ? CU.displayName.split(" ")[0] : "";
+  var uname = CU ? (CU.email||CU.displayName||"user").split("@")[0] : "";
   document.getElementById("hdr").innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px">'+
     '<div><div style="color:#f6c90e;font-size:17px;font-weight:800">⚜ GoldJournal</div>'+
