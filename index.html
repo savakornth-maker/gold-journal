@@ -8,9 +8,6 @@
 <meta name="apple-mobile-web-app-title" content="GoldJournal"/>
 <meta name="theme-color" content="#0d0c0a"/>
 <title>GoldJournal</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" crossorigin="anonymous"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;font-size:13px}
@@ -46,32 +43,10 @@ textarea.fi{resize:none}
 /* Period filter tabs */
 .ptab{padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #2a2520;background:#181411;color:#8a7a5a}
 .ptab.act{border-color:#f6c90e;background:#3d301022;color:#f6c90e}
-/* Login page */
-#loginpage{position:fixed;inset:0;background:#0d0c0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;padding:40px 24px}
 </style>
 </head>
 <body>
 
-<!-- Login Page -->
-<div id="loginpage">
-  <div style="font-size:52px;margin-bottom:14px">⚜</div>
-  <div style="color:#f6c90e;font-size:26px;font-weight:800;margin-bottom:6px">GoldJournal</div>
-  <div style="color:#8a7a5a;font-size:13px;margin-bottom:32px">XAU/USD Trading Journal</div>
-  <div id="login-err" style="color:#fc8181;font-size:12px;margin-bottom:12px;text-align:center;display:none"></div>
-  <div style="width:100%;max-width:300px">
-    <div style="margin-bottom:10px">
-      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">Email</label>
-      <input id="li-email" type="email" placeholder="your@email.com" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:14px;outline:none"/>
-    </div>
-    <div style="margin-bottom:20px">
-      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">Password</label>
-      <input id="li-pass" type="password" placeholder="รหัสผ่าน" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:14px;outline:none" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <button onclick="doLogin()" style="width:100%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;border-radius:12px;padding:14px;color:#000;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:10px">เข้าสู่ระบบ</button>
-    <button onclick="doRegister()" style="width:100%;background:none;border:1px solid #2a2520;border-radius:12px;padding:12px;color:#8a7a5a;font-size:13px;cursor:pointer">สมัครสมาชิกใหม่</button>
-  </div>
-  <div style="color:#8a7a5a;font-size:10px;margin-top:20px;text-align:center;line-height:1.8">ข้อมูลของคุณเก็บบน Cloud อย่างปลอดภัย<br>แยกจากผู้ใช้คนอื่น</div>
-</div>
 
 <!-- Main App -->
 <div id="app">
@@ -93,114 +68,17 @@ textarea.fi{resize:none}
 </div>
 
 <script>
-// Global error handler to catch and display errors
-window.addEventListener('error', function(e) {
-  var el = document.getElementById('login-err');
-  if(el) { el.textContent = 'Error: ' + e.message + ' (line ' + e.lineno + ')'; el.style.display = 'block'; }
-  console.log('Error:', e.message, e.filename, e.lineno);
-});
-window.addEventListener('unhandledrejection', function(e) {
-  var el = document.getElementById('login-err');
-  if(el) { el.textContent = 'Promise Error: ' + (e.reason&&e.reason.message||e.reason); el.style.display = 'block'; }
-});
-// ── Firebase ───────────────────────────────────────────────────────────────────
-var firebaseConfig = {
-  apiKey: "AIzaSyAdpF6MhHmlkAukNFUJzBL_Zx4Q_u607KU",
-  authDomain: "gold-journal-f724e.firebaseapp.com",
-  projectId: "gold-journal-f724e",
-  storageBucket: "gold-journal-f724e.firebasestorage.app",
-  messagingSenderId: "229085203148",
-  appId: "1:229085203148:web:e35eec88aa84788461d069",
-  measurementId: "G-5V3PWD15PD"
-};
-var db = null, auth = null, CU = null;
-function initFirebase() {
-  try {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-    auth = firebase.auth();
-    setupAuthListener();
-  } catch(e) {
-    var el = document.getElementById('login-err');
-    if(el){ el.textContent = 'Firebase Error: ' + e.message; el.style.display='block'; }
-    console.log('Firebase init error:', e);
-  }
-}
-
-function showLoginErr(msg){
-  var el=document.getElementById("login-err");
-  if(el){el.textContent=msg;el.style.display="block";}
-}
-function doLogin(){
-  var email=(document.getElementById("li-email")||{}).value||"";
-  var pass=(document.getElementById("li-pass")||{}).value||"";
-  if(!email||!pass){showLoginErr("กรุณากรอก Email และ Password");return;}
-  if(!auth){showLoginErr("Firebase ไม่พร้อม");return;}
-  document.querySelector("#loginpage button").textContent="กำลังเข้าสู่ระบบ...";
-  auth.signInWithEmailAndPassword(email,pass).catch(function(e){
-    var msg="เข้าสู่ระบบไม่ได้";
-    if(e.code==="auth/user-not-found")msg="ไม่พบ Email นี้ กรุณาสมัครสมาชิก";
-    else if(e.code==="auth/wrong-password")msg="รหัสผ่านไม่ถูกต้อง";
-    else if(e.code==="auth/invalid-email")msg="Email ไม่ถูกต้อง";
-    else if(e.code==="auth/invalid-credential")msg="Email หรือ Password ไม่ถูกต้อง";
-    showLoginErr(msg);
-    var btn=document.querySelector("#loginpage button");
-    if(btn)btn.textContent="เข้าสู่ระบบ";
-  });
-}
-function doRegister(){
-  var email=(document.getElementById("li-email")||{}).value||"";
-  var pass=(document.getElementById("li-pass")||{}).value||"";
-  if(!email||!pass){showLoginErr("กรุณากรอก Email และ Password");return;}
-  if(pass.length<6){showLoginErr("Password ต้องมีอย่างน้อย 6 ตัวอักษร");return;}
-  if(!auth){showLoginErr("Firebase ไม่พร้อม");return;}
-  auth.createUserWithEmailAndPassword(email,pass).catch(function(e){
-    var msg="สมัครไม่สำเร็จ";
-    if(e.code==="auth/email-already-in-use")msg="Email นี้ถูกใช้แล้ว กรุณาเข้าสู่ระบบ";
-    else if(e.code==="auth/invalid-email")msg="Email ไม่ถูกต้อง";
-    else if(e.code==="auth/weak-password")msg="Password ต้องมีอย่างน้อย 6 ตัวอักษร";
-    showLoginErr(msg);
-  });
-}
-function signOut() {
-  if (!auth) return;
-  auth.signOut().then(function() {
-    CU = null;
-    document.getElementById("app").style.display="none";
-    document.getElementById("loginpage").style.display="flex";
-  });
-}
-function setupAuthListener() {
-  if (!auth) return;
-  auth.onAuthStateChanged(function(u) {
-    if (u) {
-      CU = u;
-      document.getElementById("loginpage").style.display = "none";
-      document.getElementById("app").style.display = "flex";
-      fbLoad();
-    } else {
-      CU = null;
-      document.getElementById("app").style.display = "none";
-      document.getElementById("loginpage").style.display = "flex";
-    }
-  });
-}
-function fbSave(key, data) {
-  if (!db || !CU) return;
-  try { var o = {}; o[key] = JSON.stringify(data); o.updated = Date.now(); db.collection("journals").doc(CU.uid).set(o, {merge:true}); } catch(e) {}
-}
-function fbLoad() {
-  if (!db || !CU) { render(); return; }
-  db.collection("journals").doc(CU.uid).get().then(function(doc) {
-    if (doc.exists) {
-      var d = doc.data();
-      if (d.trades) { try { var t=JSON.parse(d.trades); if(t&&t.length) G.t=t; } catch(e) {} }
-      if (d.settings) { try { var s=JSON.parse(d.settings); if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;} } catch(e) {} }
-    }
-    render();
-  }).catch(function() { render(); });
-}
-
+// ── Simple Storage (localStorage + IndexedDB) ──────────────────────────────────
+var CU = null; // No auth - use device ID instead
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function lsGet(k){try{var d=localStorage.getItem(k);return d?JSON.parse(d):null;}catch(e){return null;}}
+function svt(){lsSet("gj4",G.t);}
+function svs(){var s={goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark};lsSet("gj4s",s);}
+function initFirebase(){}
+function fbSave(){}
+function fbLoad(){ render(); }
+function setupAuthListener(){}
+function signOut(){}
 // ── Constants ──────────────────────────────────────────────────────────────────
 var EMO = [
   {key:"calm",   lbl:"สงบ", em:"😌", col:"#3ecf8e"},
@@ -383,7 +261,7 @@ function svgDonut(w,l,o){
 
 // ── Header ─────────────────────────────────────────────────────────────────────
 function rHdr(){
-  var uname = CU ? (CU.email||CU.displayName||"user").split("@")[0] : "";
+  var uname = "";
   document.getElementById("hdr").innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px">'+
     '<div><div style="color:#f6c90e;font-size:17px;font-weight:800">⚜ GoldJournal</div>'+
@@ -391,7 +269,7 @@ function rHdr(){
     '<div style="display:flex;gap:5px;align-items:center">'+
     '<button onclick="toggleDark()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">'+(G.dark?"☀️":"🌙")+'</button>'+
     '<button onclick="openSett()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">⚙️</button>'+
-    '<button onclick="signOut()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:11px;color:#8a7a5a">ออก</button>'+
+    
     '</div></div>';
 }
 
@@ -856,10 +734,8 @@ document.getElementById("app").appendChild(fab);
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden"){svt();svs();}});
 window.addEventListener("pagehide",function(){svt();svs();});
 
-// Init Firebase after page loads
-window.addEventListener("load", function(){
-  initFirebase();
-});
+// Init app
+render();
 </script>
 </body>
 </html>
