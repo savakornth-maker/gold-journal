@@ -173,7 +173,7 @@ function doLogin(){
   fbdb.collection("users").doc(uid).get().then(function(doc){
     if(doc.exists){
       var d = doc.data();
-      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
+      if(d.trades){try{var t=JSON.parse(d.trades);if(Array.isArray(t))G.t=t}catch(e){}}
       if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
       var uname = d.name||name;
       enterApp(uid, uname);
@@ -201,7 +201,7 @@ function loadFromFB(uid, name){
   fbdb.collection("users").doc(uid).get().then(function(doc){
     if(doc.exists){
       var d = doc.data();
-      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
+      if(d.trades){try{var t=JSON.parse(d.trades);if(Array.isArray(t))G.t=t}catch(e){}}
       if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
       enterApp(uid, name);
     } else {
@@ -218,7 +218,7 @@ function loadFromFB(uid, name){
 function fbSave(){
   if(!fbdb||!CUID) return;
   var data = {trades:JSON.stringify(G.t), settings:JSON.stringify({goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark}), updated:Date.now()};
-  fbdb.collection("users").doc(CUID).set(data, {merge:true}).catch(function(e){console.log("fbSave error:",e.message)});
+  fbdb.collection("users").doc(CUID).set(data, {merge:true}).catch(function(e){console.log("fbSave error:",e.message); toast("Save error","err");});
 }
 
 function syncNow(){
@@ -227,12 +227,24 @@ function syncNow(){
   fbdb.collection("users").doc(CUID).get().then(function(doc){
     if(doc.exists){
       var d=doc.data();
-      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length){G.t=t;lsSet("gj5",G.t);}}catch(e){}}
-      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;lsSet("gj5s",{goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark});}}catch(e){}}
+      if(d.trades){
+        try{
+          var t=JSON.parse(d.trades);
+          if(Array.isArray(t)){G.t=t;lsSet("gj5",G.t);}
+        }catch(e){}
+      }
+      if(d.settings){
+        try{
+          var s=JSON.parse(d.settings);
+          if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;lsSet("gj5s",{goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark});}
+        }catch(e){}
+      }
       render();
-      toast("Sync สำเร็จ ✅","ok");
+      toast("Sync สำเร็จ "+G.t.length+" เทรด ✅","ok");
+    } else {
+      toast("ไม่พบข้อมูลใน Cloud","err");
     }
-  }).catch(function(){ toast("Sync ไม่สำเร็จ","err"); });
+  }).catch(function(e){ toast("Error: "+e.message,"err"); });
 }
 
 function doSignOut(){
