@@ -41,9 +41,45 @@ textarea.fi{resize:none}
 .ptab{padding:5px 12px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #2a2520;background:#181411;color:#8a7a5a}
 .ptab.act{border-color:#f6c90e;background:#3d301022;color:#f6c90e}
 </style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-<div id="app">
+<!-- PIN Login -->
+<div id="pinpage" style="position:fixed;inset:0;background:#0d0c0a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;padding:32px 24px">
+  <div style="font-size:48px;margin-bottom:12px">⚜</div>
+  <div style="color:#f6c90e;font-size:24px;font-weight:800;margin-bottom:4px">GoldJournal</div>
+  <div style="color:#8a7a5a;font-size:12px;margin-bottom:32px">XAU/USD Trading Journal</div>
+  <div id="pin-err" style="color:#fc8181;font-size:12px;margin-bottom:10px;text-align:center;min-height:18px"></div>
+  <div id="pin-setup" style="width:100%;max-width:280px;display:none">
+    <div style="color:#f0e6c8;font-size:13px;font-weight:700;margin-bottom:12px;text-align:center">สร้างบัญชีใหม่</div>
+    <div style="margin-bottom:10px">
+      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">ชื่อผู้ใช้</label>
+      <input id="pin-name" type="text" placeholder="เช่น Dream" maxlength="20" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:14px;outline:none"/>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">PIN 4 หลัก</label>
+      <input id="pin-new" type="number" placeholder="เช่น 1234" maxlength="4" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:18px;outline:none;letter-spacing:8px"/>
+    </div>
+    <button onclick="doSetup()" style="width:100%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;border-radius:12px;padding:14px;color:#000;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:10px">สร้างบัญชี</button>
+    <button onclick="showLogin()" style="width:100%;background:none;border:1px solid #2a2520;border-radius:12px;padding:12px;color:#8a7a5a;font-size:12px;cursor:pointer">มีบัญชีแล้ว → เข้าสู่ระบบ</button>
+  </div>
+  <div id="pin-login" style="width:100%;max-width:280px">
+    <div id="pin-welcome" style="color:#f0e6c8;font-size:13px;font-weight:700;margin-bottom:12px;text-align:center">ยินดีต้อนรับ</div>
+    <div style="margin-bottom:16px">
+      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">ชื่อผู้ใช้</label>
+      <input id="pin-user" type="text" placeholder="ชื่อผู้ใช้" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:14px;outline:none"/>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="color:#8a7a5a;font-size:11px;display:block;margin-bottom:4px">PIN 4 หลัก</label>
+      <input id="pin-in" type="number" placeholder="PIN" maxlength="4" style="width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:8px;padding:11px 14px;color:#f0e6c8;font-size:18px;outline:none;letter-spacing:8px" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button onclick="doLogin()" style="width:100%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;border-radius:12px;padding:14px;color:#000;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:10px">เข้าสู่ระบบ</button>
+    <button onclick="showSetup()" style="width:100%;background:none;border:1px solid #2a2520;border-radius:12px;padding:12px;color:#8a7a5a;font-size:12px;cursor:pointer">ยังไม่มีบัญชี → สร้างใหม่</button>
+  </div>
+  <div style="color:#2a2520;font-size:10px;margin-top:24px;text-align:center">ข้อมูลเก็บบน Cloud · แยกตามผู้ใช้</div>
+</div>
+<div id="app" style="display:none">
   <div id="hdr"></div>
   <div id="cnt"></div>
   <nav id="nav"></nav>
@@ -71,6 +107,104 @@ function fm(n){if(n==null||isNaN(n))return"—";return(n>=0?"+":"")+f2(n)}
 function rr(e,sl,tp){if(!e||!sl||!tp)return null;var r=Math.abs(e-sl),w=Math.abs(tp-e);return r===0?null:w/r}
 function pnl(e,sl,tp,lot,dir,res){if(res==="Open")return null;var cl=res==="Win"?tp:sl;return(dir==="BUY"?cl-e:e-cl)*(lot||0)*100}
 
+// Firebase
+var firebaseConfig = {
+  apiKey: "AIzaSyAdpF6MhHmlkAukNFUJzBL_Zx4Q_u607KU",
+  authDomain: "gold-journal-f724e.firebaseapp.com",
+  projectId: "gold-journal-f724e",
+  storageBucket: "gold-journal-f724e.firebasestorage.app",
+  messagingSenderId: "229085203148",
+  appId: "1:229085203148:web:e35eec88aa84788461d069"
+};
+var fbapp = null, fbdb = null, CUID = null;
+function initFB(){
+  try{
+    fbapp = firebase.initializeApp(firebaseConfig);
+    fbdb = firebase.firestore();
+  }catch(e){ console.log("FB init error:", e.message); }
+}
+
+// PIN Auth
+function hashPin(name, pin){
+  var s = name.toLowerCase().trim() + ":" + pin;
+  var h = 0;
+  for(var i=0;i<s.length;i++){ h = ((h<<5)-h)+s.charCodeAt(i); h=h&h; }
+  return "u" + Math.abs(h).toString(36);
+}
+
+function showSetup(){
+  document.getElementById("pin-login").style.display="none";
+  document.getElementById("pin-setup").style.display="block";
+  document.getElementById("pin-err").textContent="";
+}
+function showLogin(){
+  document.getElementById("pin-setup").style.display="none";
+  document.getElementById("pin-login").style.display="block";
+  document.getElementById("pin-err").textContent="";
+}
+
+function doSetup(){
+  var name = (document.getElementById("pin-name")||{}).value||"";
+  var pin = (document.getElementById("pin-new")||{}).value||"";
+  name = name.trim();
+  if(!name){document.getElementById("pin-err").textContent="กรุณากรอกชื่อ";return}
+  if(pin.length!==4||isNaN(+pin)){document.getElementById("pin-err").textContent="PIN ต้องเป็นตัวเลข 4 หลัก";return}
+  if(!fbdb){document.getElementById("pin-err").textContent="กำลังเชื่อมต่อ...";return}
+  var uid = hashPin(name, pin);
+  fbdb.collection("users").doc(uid).get().then(function(doc){
+    if(doc.exists){
+      document.getElementById("pin-err").textContent="ชื่อนี้ใช้แล้ว กรุณาเปลี่ยนชื่อหรือเข้าสู่ระบบ";
+    } else {
+      fbdb.collection("users").doc(uid).set({name:name,created:Date.now(),trades:"[]",settings:"{}"}).then(function(){
+        enterApp(uid, name);
+      });
+    }
+  }).catch(function(e){document.getElementById("pin-err").textContent="Error: "+e.message});
+}
+
+function doLogin(){
+  var name = (document.getElementById("pin-user")||{}).value||"";
+  var pin = (document.getElementById("pin-in")||{}).value||"";
+  name = name.trim();
+  if(!name||!pin){document.getElementById("pin-err").textContent="กรุณากรอกชื่อและ PIN";return}
+  if(!fbdb){document.getElementById("pin-err").textContent="กำลังเชื่อมต่อ...";return}
+  var uid = hashPin(name, pin);
+  document.getElementById("pin-err").textContent="กำลังตรวจสอบ...";
+  fbdb.collection("users").doc(uid).get().then(function(doc){
+    if(doc.exists){
+      var d = doc.data();
+      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
+      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
+      enterApp(uid, d.name||name);
+    } else {
+      document.getElementById("pin-err").textContent="ไม่พบบัญชีนี้ กรุณาตรวจสอบชื่อและ PIN";
+    }
+  }).catch(function(e){document.getElementById("pin-err").textContent="Error: "+e.message});
+}
+
+function enterApp(uid, name){
+  CUID = uid;
+  lsSet("gj_session", {uid:uid, name:name, ts:Date.now()});
+  document.getElementById("pinpage").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  G.uname = name;
+  render();
+}
+
+function fbSave(){
+  if(!fbdb||!CUID) return;
+  var data = {trades:JSON.stringify(G.t), settings:JSON.stringify({goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark}), updated:Date.now()};
+  fbdb.collection("users").doc(CUID).set(data, {merge:true}).catch(function(e){console.log("fbSave error:",e.message)});
+}
+
+function doSignOut(){
+  CUID = null; G.uname = "";
+  lsSet("gj_session", null);
+  document.getElementById("app").style.display = "none";
+  document.getElementById("pinpage").style.display = "flex";
+  showLogin();
+}
+
 function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 function lsGet(k){try{var d=localStorage.getItem(k);return d?JSON.parse(d):null}catch(e){return null}}
 
@@ -92,12 +226,12 @@ var G = {
   jperiod:"all", jFrom:"", jTo:"",
   dperiod:"all", dFrom:"", dTo:"",
   cdate:new Date(), csel:null,
-  etrade:null,
+  etrade:null, uname:"",
   goal:savedS.goal, bal:savedS.bal, mrisk:savedS.mrisk, dark:savedS.dark
 };
 
-function svt(){lsSet("gj5",G.t)}
-function svs(){lsSet("gj5s",{goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark})}
+function svt(){lsSet("gj5",G.t);fbSave()}
+function svs(){lsSet("gj5s",{goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark});fbSave()}
 
 function getPeriodRange(period,fk,tk){
   if(period==="all") return null;
@@ -216,9 +350,17 @@ function ptabs(cur,tag,fk,tk){
 function setP(tag,p){if(tag==="j"){G.jperiod=p;rJ()}else{G.dperiod=p;rD()}}
 
 function rHdr(){
-  document.getElementById("hdr").innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px"><div><div style="color:#f6c90e;font-size:17px;font-weight:800">GoldJournal</div><div style="color:#8a7a5a;font-size:9px">XAU/USD Trading Journal</div></div><div style="display:flex;gap:5px;align-items:center"><button onclick="toggleDark()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">'+(G.dark?"☀️":"🌙")+'</button><button onclick="openSett()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">⚙️</button></div></div>';
+  var uname = G.uname || "XAU/USD";
+  document.getElementById("hdr").innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:6px">' +
+    '<div><div style="color:#f6c90e;font-size:17px;font-weight:800">GoldJournal</div>' +
+    '<div style="color:#8a7a5a;font-size:9px">' + uname + '</div></div>' +
+    '<div style="display:flex;gap:5px;align-items:center">' +
+    '<button onclick="toggleDark()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">' + (G.dark ? "☀️" : "🌙") + '</button>' +
+    '<button onclick="openSett()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">⚙️</button>' +
+    '<button onclick="doSignOut()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:10px;color:#8a7a5a">ออก</button>' +
+    '</div></div>';
 }
-
 function rNav(){
   document.getElementById("nav").innerHTML=[{k:"journal",i:"📋",l:"Journal"},{k:"dashboard",i:"📊",l:"Stats"},{k:"calendar",i:"📅",l:"Calendar"}].map(function(t){
     return'<button onclick="setTab(\''+t.k+'\')" style="flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 0"><span style="font-size:17px">'+t.i+'</span><span style="color:'+(G.tab===t.k?"#f6c90e":"#8a7a5a")+';font-size:8px;font-weight:'+(G.tab===t.k?700:400)+'">'+t.l+'</span>'+(G.tab===t.k?'<div style="width:16px;height:2px;background:#f6c90e;border-radius:1px;margin-top:1px"></div>':'')+'</button>';
@@ -533,7 +675,33 @@ document.getElementById("app").appendChild(fab);
 document.addEventListener("visibilitychange",function(){if(document.visibilityState==="hidden"){svt();svs()}});
 window.addEventListener("pagehide",function(){svt();svs()});
 
-render();
+// Init Firebase and check saved session
+window.addEventListener("load", function(){
+  initFB();
+  // Check if user has active session
+  var sess = lsGet("gj_session");
+  if(sess && sess.uid && sess.name && (Date.now()-sess.ts < 30*24*60*60*1000)){
+    // Session valid (30 days) - load from Firebase
+    if(fbdb){
+      fbdb.collection("users").doc(sess.uid).get().then(function(doc){
+        if(doc.exists){
+          var d=doc.data();
+          if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
+          if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
+          enterApp(sess.uid, sess.name);
+        } else {
+          lsSet("gj_session", null);
+        }
+      }).catch(function(){
+        // Offline - use local data
+        enterApp(sess.uid, sess.name);
+      });
+    } else {
+      enterApp(sess.uid, sess.name);
+    }
+  }
+  // else: show PIN login page (default)
+});
 </script>
 </body>
 </html>
