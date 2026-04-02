@@ -175,7 +175,8 @@ function doLogin(){
       var d = doc.data();
       if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
       if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
-      enterApp(uid, d.name||name);
+      var uname = d.name||name;
+      enterApp(uid, uname);
     } else {
       document.getElementById("pin-err").textContent="ไม่พบบัญชีนี้ กรุณาตรวจสอบชื่อและ PIN";
     }
@@ -191,10 +192,47 @@ function enterApp(uid, name){
   render();
 }
 
+function loadFromFB(uid, name){
+  if(!fbdb){
+    // No Firebase - use local cache
+    enterApp(uid, name);
+    return;
+  }
+  fbdb.collection("users").doc(uid).get().then(function(doc){
+    if(doc.exists){
+      var d = doc.data();
+      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
+      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
+      enterApp(uid, name);
+    } else {
+      lsSet("gj_session", null);
+      // Show login
+      document.getElementById("pinpage").style.display = "flex";
+    }
+  }).catch(function(){
+    // Offline - use local cache
+    enterApp(uid, name);
+  });
+}
+
 function fbSave(){
   if(!fbdb||!CUID) return;
   var data = {trades:JSON.stringify(G.t), settings:JSON.stringify({goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark}), updated:Date.now()};
   fbdb.collection("users").doc(CUID).set(data, {merge:true}).catch(function(e){console.log("fbSave error:",e.message)});
+}
+
+function syncNow(){
+  if(!fbdb || !CUID){ toast("ไม่มีการเชื่อมต่อ","err"); return; }
+  toast("กำลัง Sync...","ok");
+  fbdb.collection("users").doc(CUID).get().then(function(doc){
+    if(doc.exists){
+      var d=doc.data();
+      if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length){G.t=t;lsSet("gj5",G.t);}}catch(e){}}
+      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;lsSet("gj5s",{goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark});}}catch(e){}}
+      render();
+      toast("Sync สำเร็จ ✅","ok");
+    }
+  }).catch(function(){ toast("Sync ไม่สำเร็จ","err"); });
 }
 
 function doSignOut(){
@@ -356,6 +394,7 @@ function rHdr(){
     '<div><div style="color:#f6c90e;font-size:17px;font-weight:800">GoldJournal</div>' +
     '<div style="color:#8a7a5a;font-size:9px">' + uname + '</div></div>' +
     '<div style="display:flex;gap:5px;align-items:center">' +
+    '<button onclick="syncNow()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px" title="Sync">🔄</button>' +
     '<button onclick="toggleDark()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">' + (G.dark ? "☀️" : "🌙") + '</button>' +
     '<button onclick="openSett()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:13px">⚙️</button>' +
     '<button onclick="doSignOut()" style="background:#161310;border:1px solid #2a2520;border-radius:7px;padding:5px 7px;font-size:10px;color:#8a7a5a">ออก</button>' +
@@ -681,24 +720,8 @@ window.addEventListener("load", function(){
   // Check if user has active session
   var sess = lsGet("gj_session");
   if(sess && sess.uid && sess.name && (Date.now()-sess.ts < 30*24*60*60*1000)){
-    // Session valid (30 days) - load from Firebase
-    if(fbdb){
-      fbdb.collection("users").doc(sess.uid).get().then(function(doc){
-        if(doc.exists){
-          var d=doc.data();
-          if(d.trades){try{var t=JSON.parse(d.trades);if(t&&t.length)G.t=t}catch(e){}}
-          if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
-          enterApp(sess.uid, sess.name);
-        } else {
-          lsSet("gj_session", null);
-        }
-      }).catch(function(){
-        // Offline - use local data
-        enterApp(sess.uid, sess.name);
-      });
-    } else {
-      enterApp(sess.uid, sess.name);
-    }
+    // Always load fresh data from Firebase
+    loadFromFB(sess.uid, sess.name);
   }
   // else: show PIN login page (default)
 });
