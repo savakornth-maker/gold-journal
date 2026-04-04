@@ -105,7 +105,7 @@ function td(){return new Date().toISOString().slice(0,10)}
 function f2(n,d){if(n==null||isNaN(n))return"—";return Number(n).toFixed(d==null?2:d)}
 function fm(n){if(n==null||isNaN(n))return"—";return(n>=0?"+":"")+f2(n)}
 function rr(e,sl,tp){if(!e||!sl||!tp)return null;var r=Math.abs(e-sl),w=Math.abs(tp-e);return r===0?null:w/r}
-function pnl(e,sl,tp,lot,dir,res){if(res==="Open")return null;var cl=res==="Win"?tp:sl;return(dir==="BUY"?cl-e:e-cl)*(lot||0)*100}
+function pnl(e,sl,tp,lot,dir,res,cp){if(res==="Open")return null;var cl=cp?cp:(res==="Win"?tp:sl);return(dir==="BUY"?cl-e:e-cl)*(lot||0)*100}
 
 // Firebase
 var firebaseConfig = {
@@ -300,9 +300,9 @@ function calcStats(trades){
   var cl=trades.filter(function(x){return x.result!=="Open"});
   var w=cl.filter(function(x){return x.result==="Win"});
   var l=cl.filter(function(x){return x.result==="Loss"});
-  var tot=cl.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0)},0);
-  var wp=w.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0)},0);
-  var la=Math.abs(l.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0)},0));
+  var tot=cl.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0)},0);
+  var wp=w.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0)},0);
+  var la=Math.abs(l.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0)},0));
   var wr=cl.length?w.length/cl.length*100:0;
   var aw=w.length?wp/w.length:0, al=l.length?la/l.length:0;
   var pf=la>0?wp/la:w.length>0?Infinity:0;
@@ -316,7 +316,7 @@ function calcStats(trades){
   var pk=0,dd=0,c2=0;
   sorted.forEach(function(x){c2+=(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0);if(c2>pk)pk=c2;if(pk-c2>dd)dd=pk-c2});
   var stMap={};
-  cl.forEach(function(x){if(!x.strat)return;if(!stMap[x.strat])stMap[x.strat]={p:0,n:0};stMap[x.strat].p+=(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0);stMap[x.strat].n++});
+  cl.forEach(function(x){if(!x.strat)return;if(!stMap[x.strat])stMap[x.strat]={p:0,n:0,w:0};stMap[x.strat].p+=(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0);stMap[x.strat].n++;if(x.result==="Win")stMap[x.strat].w++;});
   var bestStrat=null,bestPnl=-Infinity;
   Object.keys(stMap).forEach(function(k){if(stMap[k].p>bestPnl){bestPnl=stMap[k].p;bestStrat=k}});
   return{w:w.length,l:l.length,op:trades.filter(function(x){return x.result==="Open"}).length,tot:tot,wr:wr,pf:pf,aw:aw,al:al,exp:exp,arr:arr,cur:cur,mw:mw,ml:ml,dd:dd,bestStrat:bestStrat,bestPnl:bestPnl,stMap:stMap};
@@ -324,7 +324,7 @@ function calcStats(trades){
 
 function curMoPnL(){
   var k=new Date().toISOString().slice(0,7);
-  return G.t.filter(function(x){return x.result!=="Open"&&x.date.indexOf(k)===0}).reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0)},0);
+  return G.t.filter(function(x){return x.result!=="Open"&&x.date.indexOf(k)===0}).reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0)},0);
 }
 
 function getFiltered(){
@@ -435,7 +435,7 @@ function rJ(){
     var dp=ts.reduce(function(s,t){return s+(pnl(t.entry,t.sl,t.tp,t.lot,t.dir,t.result)||0)},0);
     var header='<div style="padding:8px 12px 4px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2520;margin-bottom:2px"><span style="color:#8a7a5a;font-size:11px;font-weight:600">'+date+'</span>'+(ts.filter(function(t){return t.result!=="Open"}).length?'<span style="color:'+(dp>=0?"#3ecf8e":"#fc8181")+';font-size:11px;font-weight:700">'+(dp>=0?"+":"")+f2(dp)+'$</span>':'')+' </div>';
     var tc=ts.map(function(t){
-      var rv=rr(t.entry,t.sl,t.tp),pv=pnl(t.entry,t.sl,t.tp,t.lot,t.dir,t.result);
+      var rv=rr(t.entry,t.sl,t.tp),pv=pnl(t.entry,t.sl,t.tp,t.lot,t.dir,t.result,t.cp);
       var em=EMO.filter(function(e){return e.key===t.emo})[0];
       var rc=rv>=2?"#3ecf8e":rv>=1?"#f6c90e":"#fc8181",pc=pv>0?"#3ecf8e":pv<0?"#fc8181":"#8a7a5a";
       return'<div style="padding:9px 10px 8px;border-bottom:1px solid #1e1a15">'+
@@ -454,7 +454,7 @@ function rJ(){
           '</div>'+
         '</div>'+
         '<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3px">'+
-          '<div><div style="color:#8a7a5a;font-size:9px">Entry</div><div style="color:#f0e6c8;font-size:12px;font-weight:600">'+t.entry+'</div></div>'+
+          '<div><div style="color:#8a7a5a;font-size:9px">Entry</div><div style="color:#f0e6c8;font-size:12px;font-weight:600">'+t.entry+'</div>'+(t.strat?'<div style="color:#f6c90e;font-size:9px">'+t.strat+'</div>':'')+"</div>"+
           '<div style="text-align:right"><div style="color:#8a7a5a;font-size:9px">SL/TP</div><div style="color:#fc8181;font-size:10px">'+t.sl+'</div><div style="color:#3ecf8e;font-size:10px">'+t.tp+'</div></div>'+
           '<div style="text-align:right"><div style="color:#8a7a5a;font-size:9px">R:R</div><div style="color:'+rc+';font-size:12px;font-weight:700">'+(rv?"1:"+f2(rv):"—")+'</div></div>'+
           '<div style="text-align:right"><div style="color:#8a7a5a;font-size:9px">PnL</div><div style="color:'+pc+';font-size:12px;font-weight:700">'+(pv!=null?"$"+fm(pv):"—")+'</div></div>'+
@@ -507,7 +507,43 @@ function rD(){
     C("📈 Cumulative PnL",svgLine(ft))+
     C("📅 PnL รายเดือน",svgBar(moD))+
     C("⏰ PnL ตาม Session",svgBar(sesD))+
+    C("🏆 Win Rate ตาม Session",(function(){
+      var rows="";
+      SES.forEach(function(ses){
+        var ts=ft.filter(function(x){return x.result!=="Open"&&x.ses===ses});
+        if(!ts.length)return;
+        var ws=ts.filter(function(x){return x.result==="Win"});
+        var wr=Math.round(ws.length/ts.length*100);
+        var col=wr>=60?"#3ecf8e":wr>=40?"#f6c90e":"#fc8181";
+        rows+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+          '<div style="color:#8a7a5a;font-size:11px;width:70px;flex-shrink:0">'+ses+'</div>'+
+          '<div style="flex:1;background:#1c1814;border-radius:4px;height:16px;overflow:hidden">'+
+          '<div style="width:'+wr+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'+
+          '<div style="color:'+col+';font-size:11px;font-weight:700;width:45px;text-align:right">'+wr+'% ('+ws.length+'/'+ts.length+')</div>'+
+          '</div>';
+      });
+      return rows||'<div style="color:#8a7a5a;font-size:11px">ไม่มีข้อมูล</div>';
+    })())+
     (stD.length?C("🏷️ PnL ตาม Strategy",svgBar(stD)):"")+
+    (Object.keys(s.stMap).length?C("🏷️ Win Rate ตาม Strategy",(function(){
+      var rows="";
+      Object.keys(s.stMap).sort(function(a,b){
+        var wa=s.stMap[a].w||0,wb=s.stMap[b].w||0;
+        var na=s.stMap[a].n,nb=s.stMap[b].n;
+        return (wb/nb)-(wa/na);
+      }).forEach(function(st){
+        var m=s.stMap[st];
+        var wr=m.n?Math.round((m.w||0)/m.n*100):0;
+        var col=wr>=60?"#3ecf8e":wr>=40?"#f6c90e":"#fc8181";
+        rows+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+          '<div style="color:#f6c90e;font-size:11px;width:80px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+st+'</div>'+
+          '<div style="flex:1;background:#1c1814;border-radius:4px;height:16px;overflow:hidden">'+
+          '<div style="width:'+wr+'%;height:100%;background:'+col+';border-radius:4px"></div></div>'+
+          '<div style="color:'+col+';font-size:11px;font-weight:700;width:55px;text-align:right">'+wr+'% ('+m.n+'T)</div>'+
+          '</div>';
+      });
+      return rows;
+    })()):"")+ 
     '<div class="card" style="display:flex;align-items:center;gap:12px">'+svgDonut(s.w,s.l,s.op)+'<div>'+[{l:"Win",v:s.w,c:"#3ecf8e"},{l:"Loss",v:s.l,c:"#fc8181"},{l:"Open",v:s.op,c:"#f6c90e"}].map(function(x){return'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><div style="width:8px;height:8px;background:'+x.c+';border-radius:2px"></div><span style="color:#8a7a5a;font-size:11px">'+x.l+': </span><span style="color:#f0e6c8;font-weight:700;font-size:11px">'+x.v+'</span></div>'}).join("")+'</div></div>'+
     C("🧠 PnL ตาม Emotion",'<div style="display:flex;gap:4px">'+emoD.map(function(em){var h=Math.max(3,(Math.abs(em.v)/emMx)*55);return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px"><div style="font-size:7px;color:'+(em.v>=0?"#3ecf8e":"#fc8181")+'">'+(em.v>0?"+":"")+f2(em.v,0)+'</div><div style="width:100%;height:'+h+'px;background:'+em.c+';border-radius:3px 3px 0 0;opacity:.85"></div><div style="font-size:13px">'+em.lb+'</div></div>'}).join("")+'</div>')+
     '</div>';
@@ -523,7 +559,7 @@ function rC(){
   var dcells="";
   for(var d=1;d<=days;d++){
     var ts=dmap[d]||[];
-    var tot=ts.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0)},0);
+    var tot=ts.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0)},0);
     var has=ts.length>0;
     var totStr=has&&tot!==0?(tot>0?"+":"")+f2(tot,0)+"$":"";
     var bg=has?(tot>0?"#1a3d2e":tot<0?"#3d1a1a":"#3d3010"):"transparent";
@@ -539,7 +575,7 @@ function rC(){
   var selHtml="";
   if(G.csel&&dmap[G.csel]){
     var selTs=dmap[G.csel];
-    var selTot=selTs.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result)||0)},0);
+    var selTot=selTs.reduce(function(s,x){return s+(pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0)},0);
     var selDate=y+"-"+(m+1<10?"0":"")+(m+1)+"-"+(G.csel<10?"0":"")+G.csel;
     selHtml='<div style="margin-top:12px">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
@@ -547,7 +583,7 @@ function rC(){
         '<div style="color:'+(selTot>=0?"#3ecf8e":"#fc8181")+';font-weight:800;font-size:14px">'+(selTot>=0?"+":"")+f2(selTot)+'$</div>'+
       '</div>'+
       selTs.map(function(t){
-        var pv=pnl(t.entry,t.sl,t.tp,t.lot,t.dir,t.result);
+        var pv=pnl(t.entry,t.sl,t.tp,t.lot,t.dir,t.result,t.cp);
         var rv=rr(t.entry,t.sl,t.tp);
         var em=EMO.filter(function(e){return e.key===t.emo})[0];
         return'<div style="background:#1c1814;border-radius:10px;padding:10px 12px;margin-bottom:6px;border-left:3px solid '+(em?em.col:"#2a2520")+'">'+
@@ -585,7 +621,7 @@ function rC(){
 
 var FS={};
 function openForm(trade){
-  FS=trade?JSON.parse(JSON.stringify(trade)):{date:td(),dir:"BUY",entry:"",sl:"",tp:"",lot:0.1,result:"Open",tf:"H4",ses:"London",note:"",emo:"neutral",imgBefore:null,imgAfter:null};
+  FS=trade?JSON.parse(JSON.stringify(trade)):{date:td(),dir:"BUY",entry:"",sl:"",tp:"",lot:0.1,result:"Open",tf:"H4",ses:"London",note:"",emo:"neutral",imgBefore:null,imgAfter:null,cp:"",strat:""};
   G.etrade=trade||null;rForm();
 }
 function rForm(){
@@ -601,13 +637,15 @@ function rForm(){
   ov.onclick=function(e){if(e.target===ov)closeForm()};
   var h='<div class="sh"><div class="hndl"></div>';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="color:#f0e6c8;font-size:15px;font-weight:700">'+(G.etrade?"✏️ แก้ไขเทรด":"📝 บันทึกใหม่")+'</span><button onclick="closeForm()" style="background:none;border:none;color:#8a7a5a;font-size:20px">x</button></div>';
+  var riskAmt = (G.bal && rp) ? G.bal * rp / 100 : null;
   h+='<div style="display:flex;gap:6px;margin-bottom:10px">';
   h+='<div style="flex:1;background:#1c1814;border-radius:8px;padding:7px 3px;text-align:center"><div style="color:#8a7a5a;font-size:9px">R:R</div><div id="prv_rr" style="color:'+rc+';font-size:14px;font-weight:700">'+(rv?"1:"+f2(rv):"—")+'</div></div>';
   h+='<div style="flex:1;background:#1c1814;border-radius:8px;padding:7px 3px;text-align:center"><div style="color:#8a7a5a;font-size:9px">PnL</div><div id="prv_pnl" style="color:'+pc+';font-size:14px;font-weight:700">'+(pv!=null?"$"+fm(pv):"—")+'</div></div>';
   h+='<div style="flex:1;background:#1c1814;border-radius:8px;padding:7px 3px;text-align:center"><div style="color:#8a7a5a;font-size:9px">Risk%</div><div id="prv_risk" style="color:'+(ro?"#fc8181":"#3ecf8e")+';font-size:14px;font-weight:700">'+(rp!=null?f2(rp)+"%":"—")+'</div></div>';
+  h+='<div style="flex:1;background:#1c1814;border-radius:8px;padding:7px 3px;text-align:center"><div style="color:#8a7a5a;font-size:9px">Risk $</div><div id="prv_ramt" style="color:'+(ro?"#fc8181":"#3ecf8e")+';font-size:14px;font-weight:700">'+(riskAmt!=null?"$"+f2(riskAmt,0):"—")+'</div></div>';
   h+='</div>';
   if(ro)h+='<div style="background:#3d1a1a;border:1px solid #fc818140;border-radius:7px;padding:6px 9px;margin-bottom:8px;color:#fc8181;font-size:11px">Risk '+f2(rp)+'% เกิน '+G.mrisk+'%</div>';
-  [{k:"date",l:"📅 วันที่",t:"date"},{k:"entry",l:"Entry",t:"number"},{k:"sl",l:"Stop Loss",t:"number"},{k:"tp",l:"Take Profit",t:"number"},{k:"lot",l:"Lot Size",t:"number"}].forEach(function(x){
+  [{k:"date",l:"📅 วันที่",t:"date"},{k:"entry",l:"Entry",t:"number"},{k:"sl",l:"Stop Loss",t:"number"},{k:"tp",l:"Take Profit",t:"number"},{k:"lot",l:"Lot Size",t:"number"},{k:"cp",l:"Close Price (ถ้ามี)",t:"number"},{k:"strat",l:"🏷️ Strategy",t:"text"}].forEach(function(x){
     h+='<div style="margin-bottom:8px"><label style="color:#8a7a5a;font-size:10px;display:block;margin-bottom:2px">'+x.l+'</label><input type="'+x.t+'" class="fi" value="'+(f[x.k]||"")+'" oninput="FS.'+x.k+'=this.value;upPrev()"/></div>';
   });
   h+='<div style="margin-bottom:8px"><label style="color:#8a7a5a;font-size:10px;display:block;margin-bottom:4px">Direction</label><div style="display:flex;gap:6px">';
@@ -647,17 +685,19 @@ function upPrev(){
   var rv=rr(+FS.entry,+FS.sl,+FS.tp);
   var pv=FS.result!=="Open"?pnl(+FS.entry,+FS.sl,+FS.tp,+FS.lot,FS.dir,FS.result):null;
   var rp=G.bal&&FS.entry&&FS.sl?(Math.abs(+FS.entry-+FS.sl)*(+FS.lot||0)*100/G.bal*100):null;
-  var e1=document.getElementById("prv_rr"),e2=document.getElementById("prv_pnl"),e3=document.getElementById("prv_risk");
+  var ra=G.bal&&rp?G.bal*rp/100:null;
+  var e1=document.getElementById("prv_rr"),e2=document.getElementById("prv_pnl"),e3=document.getElementById("prv_risk"),e4=document.getElementById("prv_ramt");
   if(e1){e1.textContent=rv?"1:"+f2(rv):"—";e1.style.color=rv>=2?"#3ecf8e":rv>=1?"#f6c90e":"#fc8181"}
   if(e2){e2.textContent=pv!=null?"$"+fm(pv):"—";e2.style.color=pv>0?"#3ecf8e":pv<0?"#fc8181":"#8a7a5a"}
   if(e3){e3.textContent=rp!=null?f2(rp)+"%":"—";e3.style.color=(rp&&rp>G.mrisk)?"#fc8181":"#3ecf8e"}
+  if(e4){e4.textContent=ra!=null?"$"+f2(ra,0):"—";e4.style.color=(rp&&rp>G.mrisk)?"#fc8181":"#3ecf8e"}
 }
 function hdImg(inp,key){var file=inp.files[0];if(!file||!file.type.match(/^image\//))return;var r=new FileReader();r.onload=function(e){FS[key]=e.target.result.split(",")[1];rForm()};r.readAsDataURL(file)}
 function svForm(){
   if(!FS.entry||+FS.entry===0){toast("กรุณากรอก Entry Price","err");return}
   if(!FS.sl||+FS.sl===0){toast("กรุณากรอก Stop Loss","err");return}
   if(!FS.tp||+FS.tp===0){toast("กรุณากรอก Take Profit","err");return}
-  var f=Object.assign({},FS,{id:FS.id||uid(),entry:+FS.entry,sl:+FS.sl,tp:+FS.tp,lot:+FS.lot});
+  var f=Object.assign({},FS,{id:FS.id||uid(),entry:+FS.entry,sl:+FS.sl,tp:+FS.tp,lot:+FS.lot,cp:FS.cp?+FS.cp:null,strat:FS.strat||""});
   var rp=G.bal&&f.entry&&f.sl?(Math.abs(f.entry-f.sl)*(f.lot||0)*100/G.bal*100):null;
   if(rp&&rp>G.mrisk){document.getElementById("rmsg").textContent="Risk "+f2(rp)+"% เกิน "+G.mrisk+"%";document.getElementById("rwarn").style.display="block"}
   if(G.etrade){G.t=G.t.map(function(x){return x.id===f.id?f:x})}else{G.t=[f].concat(G.t)}
