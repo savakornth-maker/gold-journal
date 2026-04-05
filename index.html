@@ -446,6 +446,7 @@ function rJ(){
             (t.tf?'<span style="color:#8a7a5a;font-size:10px;background:#1c1814;padding:2px 5px;border-radius:4px">'+t.tf+'</span>':'')+
             (t.ses?'<span style="color:#63b3ed;font-size:9px;background:#1a2a3d;padding:2px 5px;border-radius:4px">'+t.ses+'</span>':'')+
             (em?'<span style="font-size:13px">'+em.em+'</span>':'')+
+            (t.stars?'<span style="font-size:11px;letter-spacing:-1px">'+("⭐".repeat(t.stars))+'</span>':'')+
           '</div>'+
           '<div style="display:flex;gap:3px;flex-shrink:0">'+
             '<button class="bs" style="background:#1c1814;border:1px solid #2a2520" onclick="dupT(\''+t.id+'\')">⧉</button>'+
@@ -544,6 +545,28 @@ function rD(){
       });
       return rows;
     })()):"")+ 
+    C("⭐ PnL ตามคุณภาพเทรด",(function(){
+      var starMap={1:{p:0,n:0},2:{p:0,n:0},3:{p:0,n:0},4:{p:0,n:0},5:{p:0,n:0}};
+      ft.filter(function(x){return x.result!=="Open"&&x.stars}).forEach(function(x){
+        var pv=pnl(x.entry,x.sl,x.tp,x.lot,x.dir,x.result,x.cp)||0;
+        starMap[x.stars].p+=pv; starMap[x.stars].n++;
+      });
+      var hasData=false;
+      var rows="";
+      for(var i=5;i>=1;i--){
+        var m=starMap[i];
+        if(!m.n)continue;
+        hasData=true;
+        var avg=m.p/m.n;
+        var col=avg>=0?"#3ecf8e":"#fc8181";
+        rows+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+          '<div style="font-size:13px;letter-spacing:-1px;width:60px;flex-shrink:0">'+"⭐".repeat(i)+'</div>'+
+          '<div style="flex:1"><div style="color:'+col+';font-size:12px;font-weight:700">avg $'+(avg>=0?"+":"")+f2(avg)+'</div>'+
+          '<div style="color:#8a7a5a;font-size:9px">'+m.n+' เทรด · รวม $'+(m.p>=0?"+":"")+f2(m.p)+'</div></div>'+
+          '</div>';
+      }
+      return hasData?rows:'<div style="color:#8a7a5a;font-size:11px">ยังไม่มีข้อมูล — ให้ดาวเทรดก่อนนะครับ</div>';
+    })())+
     '<div class="card" style="display:flex;align-items:center;gap:12px">'+svgDonut(s.w,s.l,s.op)+'<div>'+[{l:"Win",v:s.w,c:"#3ecf8e"},{l:"Loss",v:s.l,c:"#fc8181"},{l:"Open",v:s.op,c:"#f6c90e"}].map(function(x){return'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px"><div style="width:8px;height:8px;background:'+x.c+';border-radius:2px"></div><span style="color:#8a7a5a;font-size:11px">'+x.l+': </span><span style="color:#f0e6c8;font-weight:700;font-size:11px">'+x.v+'</span></div>'}).join("")+'</div></div>'+
     C("🧠 PnL ตาม Emotion",'<div style="display:flex;gap:4px">'+emoD.map(function(em){var h=Math.max(3,(Math.abs(em.v)/emMx)*55);return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px"><div style="font-size:7px;color:'+(em.v>=0?"#3ecf8e":"#fc8181")+'">'+(em.v>0?"+":"")+f2(em.v,0)+'</div><div style="width:100%;height:'+h+'px;background:'+em.c+';border-radius:3px 3px 0 0;opacity:.85"></div><div style="font-size:13px">'+em.lb+'</div></div>'}).join("")+'</div>')+
     '</div>';
@@ -593,6 +616,7 @@ function rC(){
               '<span style="background:'+(t.result==="Win"?"#1a3d2e":t.result==="Loss"?"#3d1a1a":"#3d3010")+';color:'+(t.result==="Win"?"#3ecf8e":t.result==="Loss"?"#fc8181":"#f6c90e")+';padding:2px 7px;border-radius:5px;font-size:10px">'+t.result+'</span>'+
               (t.tf?'<span style="color:#8a7a5a;font-size:10px">'+t.tf+'</span>':'')+
               (em?'<span>'+em.em+'</span>':'')+
+              (t.stars?'<span style="font-size:10px;letter-spacing:-1px">'+("⭐".repeat(t.stars))+'</span>':'')+
             '</div>'+
             '<span style="color:'+(pv>0?"#3ecf8e":pv<0?"#fc8181":"#8a7a5a")+';font-weight:800;font-size:14px">'+(pv!=null?"$"+fm(pv):"Open")+'</span>'+
           '</div>'+
@@ -621,7 +645,7 @@ function rC(){
 
 var FS={};
 function openForm(trade){
-  FS=trade?JSON.parse(JSON.stringify(trade)):{date:td(),dir:"BUY",entry:"",sl:"",tp:"",lot:0.1,result:"Open",tf:"H4",ses:"London",note:"",emo:"neutral",imgBefore:null,imgAfter:null,cp:"",strat:""};
+  FS=trade?JSON.parse(JSON.stringify(trade)):{date:td(),dir:"BUY",entry:"",sl:"",tp:"",lot:0.1,result:"Open",tf:"H4",ses:"London",note:"",emo:"neutral",imgBefore:null,imgAfter:null,cp:"",strat:"",stars:0};
   G.etrade=trade||null;rForm();
 }
 function rForm(){
@@ -663,6 +687,14 @@ function rForm(){
   h+='<div style="margin-bottom:8px"><label style="color:#8a7a5a;font-size:10px;display:block;margin-bottom:4px">Emotion</label><div style="display:flex;gap:4px">';
   EMO.forEach(function(em){h+='<button onclick="FS.emo=\''+em.key+'\';rForm()" style="flex:1;padding:6px 2px;border-radius:7px;border:2px solid '+(f.emo===em.key?em.col:"#2a2520")+';background:'+(f.emo===em.key?em.col+"22":"#1c1814")+';cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-size:16px">'+em.em+'</span><span style="color:'+(f.emo===em.key?em.col:"#8a7a5a")+';font-size:7px">'+em.lbl+'</span></button>'});
   h+='</div></div>';
+  h+='<div style="margin-bottom:10px"><label style="color:#8a7a5a;font-size:10px;display:block;margin-bottom:6px">⭐ คุณภาพเทรด</label>';
+  h+='<div style="display:flex;gap:8px;justify-content:center">';
+  for(var si=1;si<=5;si++){
+    var sactive = (f.stars||0)>=si;
+    h+='<button onclick="FS.stars=FS.stars==='+si+'?0:'+si+';rForm()" style="background:none;border:none;cursor:pointer;font-size:28px;opacity:'+(sactive?1:0.25)+';transition:opacity .15s">'+(sactive?"⭐":"☆")+'</button>';
+  }
+  h+='</div>';
+  h+='<div style="text-align:center;color:#8a7a5a;font-size:10px;margin-top:4px">'+(f.stars===1?"ควรปรับปรุง":f.stars===2?"พอใช้":f.stars===3?"ดี":f.stars===4?"ดีมาก":f.stars===5?"สมบูรณ์แบบ":"ยังไม่ได้ให้คะแนน")+'</div></div>';
   h+='<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><label style="color:#8a7a5a;font-size:10px">Note</label>';
   h+='<div style="display:flex;gap:3px"><button onclick="FS.note=(FS.note||\'\')+\'เหตุผลที่เข้า: \'" style="font-size:8px;padding:2px 5px;border-radius:4px;border:1px solid #2a2520;background:#1c1814;color:#8a7a5a;cursor:pointer">เหตุผลเข้า</button><button onclick="FS.note=(FS.note||\'\')+\'เหตุผลที่ออก: \'" style="font-size:8px;padding:2px 5px;border-radius:4px;border:1px solid #2a2520;background:#1c1814;color:#8a7a5a;cursor:pointer">เหตุผลออก</button><button onclick="FS.note=(FS.note||\'\')+\'บทเรียน: \'" style="font-size:8px;padding:2px 5px;border-radius:4px;border:1px solid #2a2520;background:#1c1814;color:#8a7a5a;cursor:pointer">Lesson</button></div>';
   h+='</div><textarea class="fi" rows="3" oninput="FS.note=this.value">'+((f.note)||"")+'</textarea></div>';
