@@ -18,7 +18,7 @@ input,textarea{-webkit-appearance:none;outline:none}
 ::-webkit-scrollbar{display:none}
 #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 #hdr{flex-shrink:0;padding:env(safe-area-inset-top,44px) 12px 0}
-#cnt{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:100px}
+#cnt{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:100px;overscroll-behavior:contain}
 #nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#141210;border-top:1px solid #2a2520;display:flex;padding:6px 0 env(safe-area-inset-bottom,18px);z-index:100}
 .card{background:#161310;border-radius:10px;padding:9px 11px;border:1px solid #2a2520;margin-bottom:8px}
 .fi{width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:8px 10px;color:#f0e6c8;font-size:13px}
@@ -27,7 +27,7 @@ textarea.fi{resize:none}
 .chip{display:inline-block;flex-shrink:0;padding:5px 11px;border-radius:16px;font-size:11px;font-weight:600;cursor:pointer;border:1.5px solid #2a2520;background:#181411;color:#8a7a5a}
 .tc{margin:0 12px 6px;background:#161310;border-radius:12px;border:1px solid #2a2520;overflow:hidden}
 .ov{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:flex;align-items:flex-end}
-.sh{background:#141210;border-radius:18px 18px 0 0;width:100%;max-height:93vh;overflow-y:auto;padding:14px 14px 44px}
+.sh{background:#141210;border-radius:18px 18px 0 0;width:100%;max-height:93vh;overflow-y:auto;padding:14px 14px 44px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .hndl{width:36px;height:3px;background:#2a2520;border-radius:2px;margin:0 auto 12px}
 .bg{width:100%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;border-radius:11px;padding:13px;color:#000;font-weight:800;font-size:15px;cursor:pointer}
 .bs{border:none;border-radius:6px;padding:4px 7px;cursor:pointer;font-size:12px}
@@ -218,7 +218,7 @@ function loadFromFB(uid, name){
 function fbSave(){
   if(!fbdb||!CUID) return;
   var data = {trades:JSON.stringify(G.t), settings:JSON.stringify({goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark}), updated:Date.now()};
-  fbdb.collection("users").doc(CUID).set(data, {merge:true}).catch(function(e){console.log("fbSave error:",e.message); toast("Save error","err");});
+  fbdb.collection("users").doc(CUID).set(data, {merge:true}).catch(function(e){console.log("fbSave error:",e.message);});
 }
 
 function syncNow(){
@@ -267,7 +267,8 @@ function getSample(){return[
   {id:uid(),date:"2025-04-15",dir:"BUY",entry:2910,sl:2895,tp:2960,lot:0.4,result:"Open",tf:"H4",ses:"London",note:"รอดู",emo:"greed",imgBefore:null,imgAfter:null}
 ]}
 
-var savedT = lsGet("gj5") || getSample();
+var savedT = lsGet("gj5");
+if(!savedT || !savedT.length) savedT = getSample();
 var savedS = lsGet("gj5s") || {goal:500,bal:10000,mrisk:2,dark:true};
 var G = {
   tab:"journal", t:savedT,
@@ -656,9 +657,12 @@ function rForm(){
   var ro=rp&&rp>G.mrisk;
   var rc=rv>=2?"#3ecf8e":rv>=1?"#f6c90e":"#fc8181";
   var pc=pv>0?"#3ecf8e":pv<0?"#fc8181":"#8a7a5a";
-  document.getElementById("fsh")&&document.getElementById("fsh").remove();
+  var oldScroll = 0;
+  var oldSheet = document.getElementById("fsh");
+  if(oldSheet){var sh=oldSheet.querySelector(".sh");if(sh)oldScroll=sh.scrollTop;oldSheet.remove();}
   var ov=document.createElement("div");ov.className="ov";ov.id="fsh";
   ov.onclick=function(e){if(e.target===ov)closeForm()};
+  document.body.style.overflow="hidden";
   var h='<div class="sh"><div class="hndl"></div>';
   h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="color:#f0e6c8;font-size:15px;font-weight:700">'+(G.etrade?"✏️ แก้ไขเทรด":"📝 บันทึกใหม่")+'</span><button onclick="closeForm()" style="background:none;border:none;color:#8a7a5a;font-size:20px">x</button></div>';
   var riskAmt = (G.bal && rp) ? G.bal * rp / 100 : null;
@@ -712,6 +716,8 @@ function rForm(){
   h+='<button class="bg" onclick="svForm()">'+(G.etrade?"💾 บันทึกการเปลี่ยนแปลง":"✅ บันทึกเทรด")+'</button></div>';
   ov.innerHTML=h;
   document.body.appendChild(ov);
+  // Restore sheet scroll position
+  if(oldScroll>0){var sh=ov.querySelector(".sh");if(sh)setTimeout(function(){sh.scrollTop=oldScroll},10);}
 }
 function upPrev(){
   var rv=rr(+FS.entry,+FS.sl,+FS.tp);
@@ -726,19 +732,21 @@ function upPrev(){
 }
 function hdImg(inp,key){var file=inp.files[0];if(!file||!file.type.match(/^image\//))return;var r=new FileReader();r.onload=function(e){FS[key]=e.target.result.split(",")[1];rForm()};r.readAsDataURL(file)}
 function svForm(){
-  if(!FS.entry||+FS.entry===0){toast("กรุณากรอก Entry Price","err");return}
-  if(!FS.sl||+FS.sl===0){toast("กรุณากรอก Stop Loss","err");return}
-  if(!FS.tp||+FS.tp===0){toast("กรุณากรอก Take Profit","err");return}
-  var f=Object.assign({},FS,{id:FS.id||uid(),entry:+FS.entry,sl:+FS.sl,tp:+FS.tp,lot:+FS.lot,cp:FS.cp?+FS.cp:null,strat:FS.strat||""});
-  var rp=G.bal&&f.entry&&f.sl?(Math.abs(f.entry-f.sl)*(f.lot||0)*100/G.bal*100):null;
-  if(rp&&rp>G.mrisk){document.getElementById("rmsg").textContent="Risk "+f2(rp)+"% เกิน "+G.mrisk+"%";document.getElementById("rwarn").style.display="block"}
-  if(G.etrade){G.t=G.t.map(function(x){return x.id===f.id?f:x})}else{G.t=[f].concat(G.t)}
-  svt();toast(G.etrade?"แก้ไขแล้ว":"บันทึกแล้ว ✅","ok");closeForm();render();
+  try{
+    if(!FS.entry||+FS.entry===0){toast("กรุณากรอก Entry Price","err");return}
+    if(!FS.sl||+FS.sl===0){toast("กรุณากรอก Stop Loss","err");return}
+    if(!FS.tp||+FS.tp===0){toast("กรุณากรอก Take Profit","err");return}
+    var f=Object.assign({},FS,{id:FS.id||uid(),entry:+FS.entry,sl:+FS.sl,tp:+FS.tp,lot:+FS.lot,cp:FS.cp?+FS.cp:null,strat:FS.strat||"",stars:FS.stars||0});
+    var rp=G.bal&&f.entry&&f.sl?(Math.abs(f.entry-f.sl)*(f.lot||0)*100/G.bal*100):null;
+    if(rp&&rp>G.mrisk){document.getElementById("rmsg").textContent="Risk "+f2(rp)+"% เกิน "+G.mrisk+"%";document.getElementById("rwarn").style.display="block"}
+    if(G.etrade){G.t=G.t.map(function(x){return x.id===f.id?f:x})}else{G.t=[f].concat(G.t)}
+    svt();toast(G.etrade?"แก้ไขแล้ว":"บันทึกแล้ว ✅","ok");closeForm();render();
+  }catch(e){toast("Error: "+e.message,"err");console.log("svForm error:",e);}
 }
-function closeForm(){var el=document.getElementById("fsh");if(el)el.remove()}
+function closeForm(){var el=document.getElementById("fsh");if(el)el.remove();document.body.style.overflow=""}
 function editT(id){openForm(G.t.filter(function(x){return x.id===id})[0])}
 function delT(id){G.t=G.t.filter(function(x){return x.id!==id});svt();toast("ลบแล้ว","err");render()}
-function dupT(id){var x=G.t.filter(function(t){return t.id===id})[0];if(!x)return;G.t=[Object.assign({},x,{id:uid(),date:td()})].concat(G.t);svt();toast("Duplicate แล้ว","ok");render()}
+function dupT(id){var x=G.t.filter(function(t){return t.id===id})[0];if(!x)return;var dup=Object.assign({},x,{id:uid(),date:td()});G.t=[dup].concat(G.t);svt();toast("Duplicate แล้ว","ok");render()}
 
 function openSett(){
   document.getElementById("ssh")&&document.getElementById("ssh").remove();
