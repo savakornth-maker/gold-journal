@@ -185,7 +185,10 @@ function doLogin(){
 
 function enterApp(uid, name){
   CUID = uid;
+  // Refresh session timestamp every time
   lsSet("gj_session", {uid:uid, name:name, ts:Date.now()});
+  // Also backup trades to localStorage
+  if(G.t && G.t.length) lsSet("gj5", G.t);
   document.getElementById("pinpage").style.display = "none";
   document.getElementById("app").style.display = "flex";
   G.uname = name;
@@ -201,16 +204,15 @@ function loadFromFB(uid, name){
   fbdb.collection("users").doc(uid).get().then(function(doc){
     if(doc.exists){
       var d = doc.data();
-      if(d.trades){try{var t=JSON.parse(d.trades);if(Array.isArray(t))G.t=t}catch(e){}}
-      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true}}catch(e){}}
-      enterApp(uid, name);
-    } else {
-      lsSet("gj_session", null);
-      // Show login
-      document.getElementById("pinpage").style.display = "flex";
+      if(d.trades){try{var t=JSON.parse(d.trades);if(Array.isArray(t)){G.t=t;lsSet("gj5",t);}}catch(e){}}
+      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;lsSet("gj5s",s);}}catch(e){}}
     }
+    // Always enter app - use whatever data we have (cloud or local)
+    enterApp(uid, name);
   }).catch(function(){
-    // Offline - use local cache
+    // Offline or error - use local cache, never lose data
+    var localT = lsGet("gj5");
+    if(localT && Array.isArray(localT)) G.t = localT;
     enterApp(uid, name);
   });
 }
@@ -267,8 +269,9 @@ function getSample(){return[
   {id:uid(),date:"2025-04-15",dir:"BUY",entry:2910,sl:2895,tp:2960,lot:0.4,result:"Open",tf:"H4",ses:"London",note:"รอดู",emo:"greed",imgBefore:null,imgAfter:null}
 ]}
 
+// Load from localStorage - NEVER use sample if localStorage has data
 var savedT = lsGet("gj5");
-if(!savedT || !savedT.length) savedT = getSample();
+if(!savedT) savedT = []; // Empty array, not sample - Firebase will load real data
 var savedS = lsGet("gj5s") || {goal:500,bal:10000,mrisk:2,dark:true};
 var G = {
   tab:"journal", t:savedT,
@@ -809,13 +812,14 @@ window.addEventListener("pagehide",function(){svt();svs()});
 // Init Firebase and check saved session
 window.addEventListener("load", function(){
   initFB();
-  // Check if user has active session
-  var sess = lsGet("gj_session");
-  if(sess && sess.uid && sess.name && (Date.now()-sess.ts < 30*24*60*60*1000)){
-    // Always load fresh data from Firebase
-    loadFromFB(sess.uid, sess.name);
-  }
-  // else: show PIN login page (default)
+  // Check session AFTER a short delay to let Firebase init
+  setTimeout(function(){
+    var sess = lsGet("gj_session");
+    if(sess && sess.uid && sess.name && (Date.now()-sess.ts < 30*24*60*60*1000)){
+      loadFromFB(sess.uid, sess.name);
+    }
+    // else: show PIN login page (default)
+  }, 300);
 });
 </script>
 </body>
