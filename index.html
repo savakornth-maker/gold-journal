@@ -201,18 +201,37 @@ function loadFromFB(uid, name){
     enterApp(uid, name);
     return;
   }
+  // Always keep local data as backup first
+  var localT = lsGet("gj5");
+  if(localT && Array.isArray(localT) && localT.length > 0) G.t = localT;
+  
   fbdb.collection("users").doc(uid).get().then(function(doc){
     if(doc.exists){
       var d = doc.data();
-      if(d.trades){try{var t=JSON.parse(d.trades);if(Array.isArray(t)){G.t=t;lsSet("gj5",t);}}catch(e){}}
-      if(d.settings){try{var s=JSON.parse(d.settings);if(s){G.goal=s.goal||500;G.bal=s.bal||10000;G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;lsSet("gj5s",s);}}catch(e){}}
+      if(d.trades){
+        try{
+          var t=JSON.parse(d.trades);
+          // Use Firebase data only if it has MORE trades than local
+          if(Array.isArray(t) && t.length >= G.t.length){
+            G.t=t;
+            lsSet("gj5",t);
+          }
+        }catch(e){}
+      }
+      if(d.settings){
+        try{
+          var s=JSON.parse(d.settings);
+          if(s){
+            G.goal=s.goal||500;G.bal=s.bal||10000;
+            G.mrisk=s.mrisk||2;G.dark=s.dark!==undefined?s.dark:true;
+            lsSet("gj5s",s);
+          }
+        }catch(e){}
+      }
     }
-    // Always enter app - use whatever data we have (cloud or local)
     enterApp(uid, name);
   }).catch(function(){
-    // Offline or error - use local cache, never lose data
-    var localT = lsGet("gj5");
-    if(localT && Array.isArray(localT)) G.t = localT;
+    // Offline - already loaded local data above
     enterApp(uid, name);
   });
 }
@@ -232,7 +251,10 @@ function syncNow(){
       if(d.trades){
         try{
           var t=JSON.parse(d.trades);
-          if(Array.isArray(t)){G.t=t;lsSet("gj5",G.t);}
+          if(Array.isArray(t)){
+            G.t=t;
+            lsSet("gj5",G.t);
+          }
         }catch(e){}
       }
       if(d.settings){
@@ -284,7 +306,10 @@ var G = {
   goal:savedS.goal, bal:savedS.bal, mrisk:savedS.mrisk, dark:savedS.dark
 };
 
-function svt(){lsSet("gj5",G.t);fbSave()}
+function svt(){
+  try{lsSet("gj5",G.t)}catch(e){}
+  fbSave();
+}
 function svs(){lsSet("gj5s",{goal:G.goal,bal:G.bal,mrisk:G.mrisk,dark:G.dark});fbSave()}
 
 function getPeriodRange(period,fk,tk){
