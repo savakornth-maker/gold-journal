@@ -18,8 +18,8 @@ input,textarea{-webkit-appearance:none;outline:none}
 ::-webkit-scrollbar{display:none}
 #app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 #hdr{flex-shrink:0;padding:env(safe-area-inset-top,44px) 12px 0}
-#cnt{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:100px;overscroll-behavior:contain}
-#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#141210;border-top:1px solid #2a2520;display:flex;padding:6px 0 env(safe-area-inset-bottom,18px);z-index:100}
+#cnt{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(120px + env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+#nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#141210;border-top:1px solid #2a2520;display:flex;padding:8px 0 env(safe-area-inset-bottom,20px);z-index:100}
 .card{background:#161310;border-radius:10px;padding:9px 11px;border:1px solid #2a2520;margin-bottom:8px}
 .fi{width:100%;background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:8px 10px;color:#f0e6c8;font-size:13px}
 .fi:focus{border-color:#f6c90e88}
@@ -31,7 +31,7 @@ textarea.fi{resize:none}
 .hndl{width:36px;height:3px;background:#2a2520;border-radius:2px;margin:0 auto 12px}
 .bg{width:100%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;border-radius:11px;padding:13px;color:#000;font-weight:800;font-size:15px;cursor:pointer}
 .bs{border:none;border-radius:6px;padding:4px 7px;cursor:pointer;font-size:12px}
-#fab{position:fixed;bottom:calc(66px + env(safe-area-inset-bottom,0px));right:14px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(246,201,14,.5);z-index:50;cursor:pointer;color:#000}
+#fab{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));right:14px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#f6c90e,#d4a000);border:none;font-size:26px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(246,201,14,.5);z-index:50;cursor:pointer;color:#000}
 #toast{position:fixed;top:calc(58px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);border-radius:8px;padding:8px 16px;z-index:300;font-size:12px;font-weight:600;white-space:nowrap;pointer-events:none;display:none}
 #lb{position:fixed;inset:0;background:rgba(0,0,0,.97);z-index:300;display:none;align-items:center;justify-content:center;padding:12px;flex-direction:column;gap:10px}
 #lb img{max-width:100%;max-height:80vh;border-radius:10px}
@@ -507,7 +507,7 @@ function rJ(){
     '</div>'+
     '<div style="padding:0 12px 4px"><span style="color:#8a7a5a;font-size:9px">'+fl.length+' เทรด</span></div>'+
     (fl.length===0?'<div style="text-align:center;color:#8a7a5a;padding:30px;font-size:12px">ไม่พบเทรด</div>':cards)+
-    '<div style="height:20px"></div>';
+    '<div style="height:40px"></div>';
 }
 
 function rD(){
@@ -523,7 +523,7 @@ function rD(){
   var emoD=EMO.map(function(e){return{lb:e.em,v:emoM[e.key]||0,c:e.col}});
   var emMx=Math.max.apply(null,emoD.map(function(e){return Math.abs(e.v)}));if(!emMx)emMx=1;
   function C(t,b){return'<div class="card"><div style="color:#8a7a5a;font-size:10px;margin-bottom:6px">'+t+'</div>'+b+'</div>'}
-  document.getElementById("cnt").innerHTML='<div style="padding:0 12px 100px">'+
+  document.getElementById("cnt").innerHTML='<div style="padding:0 12px 120px">'+
     ptabs(G.dperiod,"d","dFrom","dTo")+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">'+
     [{i:"💰",l:"Total PnL",v:"$"+fm(s.tot),c:s.tot>=0?"#3ecf8e":"#fc8181"},{i:"🎯",l:"Win Rate",v:f2(s.wr)+"%",c:"#f6c90e"},{i:"📊",l:"Profit Factor",v:isFinite(s.pf)?f2(s.pf):"∞",c:s.pf>=1.5?"#3ecf8e":"#fc8181"},{i:"📉",l:"Max DD",v:"$"+f2(s.dd),c:"#fc8181"}].map(function(x){return'<div class="card" style="margin-bottom:0"><div style="color:#8a7a5a;font-size:10px">'+x.i+' '+x.l+'</div><div style="color:'+x.c+';font-size:19px;font-weight:800;margin-top:1px">'+x.v+'</div></div>'}).join("")+'</div>'+
@@ -660,7 +660,7 @@ function rC(){
     '</div>';
   }
   document.getElementById("cnt").innerHTML=
-    '<div style="padding:0 12px 100px">'+
+    '<div style="padding:0 12px 120px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
       '<button onclick="prevM()" style="background:#1c1814;border:1px solid #2a2520;border-radius:7px;padding:6px 12px;color:#f0e6c8;cursor:pointer;font-size:14px">&#8249;</button>'+
       '<span style="color:#f0e6c8;font-weight:700;font-size:13px">'+G.cdate.toLocaleString("th-TH",{month:"long",year:"numeric"})+'</span>'+
